@@ -1,5 +1,5 @@
 import { Link, Routes, Route, Outlet, Navigate, useNavigate } from "react-router-dom";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -18,11 +18,12 @@ import CotizacionesPage from "@/pages/Cotizaciones";
 import LoginPage from "@/pages/Login";
 import SettingsPage from "@/pages/Settings";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
-import { useAuth } from "@/contexts/AuthContext";
-import { logOut } from "@/redux/authSlice";
+import { logOut, setCredentials } from "@/redux/authSlice";
 import LanguageSelector from "@/components/LanguageSelector";
 import { useAppTranslation } from "@/i18n/hooks";
 import type { RootState } from "./redux/store";
+import { useAuthTimeout } from "./hooks/useAuthTimeout";
+import axiosInstance from "./lib/axios.new";
 
 // Placeholder components for pages
 const Dashboard = () => {
@@ -107,6 +108,7 @@ const UserMenu = () => {
 // New Layout component
 const DashboardLayout = () => {
   const { t } = useAppTranslation(['navigation']);
+  useAuthTimeout(15); // Inicia el temporizador de inactividad (15 minutos)
   const user = useSelector((state: RootState) => state.auth.user); // ← Agregar esta línea
 
   // DEBUG
@@ -157,9 +159,40 @@ const DashboardLayout = () => {
   );
 };
 
+/**
+ * Hook para manejar la validación inicial de la autenticación al cargar la app.
+ */
+const useInitialAuth = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useDispatch();
+  const token = useSelector((state: RootState) => state.auth.token);
+
+  useEffect(() => {
+    const validateToken = async () => {
+      const storedToken = localStorage.getItem('access_token');
+      if (storedToken && !token) {
+        try {
+          const userResponse = await axiosInstance.get("/api/users/me/");
+          dispatch(setCredentials({ user: userResponse.data, token: storedToken }));
+        } catch (error) {
+          console.error("Token validation failed, logging out.", error);
+          dispatch(logOut());
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
+      }
+      setIsLoading(false);
+    };
+
+    validateToken();
+  }, [dispatch, token]);
+
+  return { isLoading };
+};
+
 
 function App() {
-  const { isLoading } = useAuth();
+  const { isLoading } = useInitialAuth();
 
   if (isLoading) {
     return (

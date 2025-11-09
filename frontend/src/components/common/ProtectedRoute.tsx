@@ -1,17 +1,26 @@
-import React from 'react';
-import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
-import { type RootState } from '../../redux/store';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/redux/store';
 
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const token = useSelector((state: RootState) => state.auth.token);
+/**
+ * Props para el componente ProtectedRoute
+ */
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
 
-  if (!token) {
-    // User is not authenticated, redirect to login page
-    return <Navigate to="/login" replace />;
-  }
+/**
+ * Componente de ruta protegida que verifica si el usuario está autenticado
+ * basándose en el estado de Redux.
+ * La validación del token se maneja en un nivel superior (App.tsx).
+ * @param children - Componentes hijos a renderizar si la autenticación es válida
+ * @returns JSX.Element
+ */
+const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  const isAuthenticated = useSelector((state: RootState) => !!state.auth.token);
 
-  return children;
+  // Renderizar hijos si está autenticado, redirigir a login si no
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

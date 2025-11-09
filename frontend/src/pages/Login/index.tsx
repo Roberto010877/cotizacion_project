@@ -56,6 +56,9 @@ const LoginPage = () => {
 
       // 3. Set credentials
       dispatch(setCredentials({ user, token: access }));
+
+      // 4. Set last activity timestamp
+      localStorage.setItem('last_activity', Date.now().toString());
       
       toast.dismiss(loadingToast);
       navigate("/");
