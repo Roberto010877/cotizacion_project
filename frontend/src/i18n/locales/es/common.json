@@ -1,0 +1,16 @@
+{
+  "app_title": "CotidoMo",
+  "app_description": "Gestión de Cortinas",
+  "purchase_orders_description": "Gestiona tus órdenes de compra aquí",
+  "suppliers_description": "Gestiona tus proveedores aquí",
+  "page_content": "Contenido de la página...",
+  "status": "Estado",
+  "active": "Activo",
+  "inactive": "Inactivo",
+  "no_results": "No hay resultados.",
+  "access_denied_title": "Área Restringida",
+  "access_denied_description": "Esta sección requiere permisos de administrador para acceder a la gestión de usuarios y configuraciones del sistema.",
+  "access_denied_contact": "Para solicitar acceso, contacta al administrador del sistema",
+  "return_to_dashboard": "Ir al Panel Principal",
+  "go_back": "Volver Atrás"
+}

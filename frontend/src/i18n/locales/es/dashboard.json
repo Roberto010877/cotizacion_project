@@ -1,0 +1,19 @@
+{
+  "dashboard": "Panel",
+  "dashboard_description": "Bienvenido al panel de administración",
+  "total_users": "Total de Usuarios",
+  "active_users": "Usuarios Activos",
+  "inactive_users": "Usuarios Inactivos",
+  "active_and_inactive": "Total de usuarios registrados",
+  "currently_active": "Usuarios con acceso al sistema",
+  "currently_inactive": "Usuarios sin acceso al sistema",
+  "updating_user_status": "Actualizando estado del usuario...",
+  "user_status_updated": "Estado del usuario actualizado correctamente",
+  "error_updating_user_status": "Error al actualizar el estado del usuario",
+  "toggle_user_status": "Cambiar estado del usuario",
+  "user_management": "Gestión de Usuarios",
+  "user_management_description": "Crear, ver y gestionar usuarios del sistema.",
+  "create_user": "Crear Usuario",
+  "create_new_user": "Crear Nuevo Usuario",
+  "create_user_description": "Completa los detalles para crear un nuevo usuario."
+}

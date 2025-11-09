@@ -1,0 +1,22 @@
+# Django Core
+Django==5.2.7
+gunicorn
+
+# Django REST Framework
+djangorestframework
+djangorestframework-simplejwt
+
+# Database
+psycopg2-binary
+
+# Utils
+django-cors-headers
+python-decouple
+boto3
+
+# PDF & Reporting
+reportlab
+xhtml2pdf
+
+# Email
+sendgrid
