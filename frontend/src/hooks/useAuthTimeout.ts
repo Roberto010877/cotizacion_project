@@ -9,11 +9,10 @@ import toast from 'react-hot-toast';
  * Hook para gestionar el cierre de sesión por inactividad
  * @param timeoutMinutes - Minutos de inactividad antes de cerrar sesión (default: 1 minuto para testing)
  */
-export const useAuthTimeout = (timeoutMinutes: number = 1) => {
+export const useAuthTimeout = (timeoutMinutes: number = 5) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const intervalRef = useRef<NodeJS.Timeout>();
-
+const intervalRef = useRef<number | null>(null);
   /**
    * Cierra la sesión del usuario de manera completa
    */

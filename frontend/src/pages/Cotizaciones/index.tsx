@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/common/DataTable";
-import { useAppTranslation } from "@/i18n/hooks"; // ← ESTA IMPORTACIÓN SÍ SE USA
+import { useAppTranslation } from "@/i18n/hooks"; 
 
 // Define the shape of our data
 type Cotizacion = {

@@ -108,7 +108,7 @@ const UserMenu = () => {
 // New Layout component
 const DashboardLayout = () => {
   const { t } = useAppTranslation(['navigation']);
-  useAuthTimeout(1); // Inicia el temporizador de inactividad (15 minutos)
+  useAuthTimeout(5); // Inicia el temporizador de inactividad (15 minutos)
   const user = useSelector((state: RootState) => state.auth.user); // ← Agregar esta línea
 
   // DEBUG

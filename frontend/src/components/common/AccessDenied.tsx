@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { useAppTranslation } from "@/i18n/hooks"; 
 import { LockKeyhole, Home, Mail, ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { useNavigate } from "react-router-dom";
 
 
 export const AccessDenied = () => {
-  const { t } = useTranslation();
+  // ESPECIFICAR EL NAMESPACE 'common'
+  const { t } = useAppTranslation(['common']);
   const navigate = useNavigate();
 
   return (
@@ -18,7 +19,7 @@ export const AccessDenied = () => {
               <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center border-4 border-red-200">
                 <LockKeyhole className="h-10 w-10 text-red-600" />
               </div>
-</div>
+            </div>
             <CardTitle className="text-3xl font-bold text-red-600 mb-4">
               {t("access_denied_title")}
             </CardTitle>
@@ -54,7 +55,7 @@ export const AccessDenied = () => {
             </div>
           </CardContent>
         </Card>
-</div>
+      </div>
     </div>
   );
 };
