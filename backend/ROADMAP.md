@@ -1,3 +1,14 @@
+
+# Orden de desarrollo revisado (con este nuevo módulo)
+Etapa	Enfoque	Resultado esperado
+1️⃣	Backend base: usuarios, clientes, proveedores, cotizaciones, órdenes de compra	Base sólida
+2️⃣	PDF y correos para cotizaciones y órdenes de compra	Documentos listos para enviar
+3️⃣	Frontend app (React): cotizaciones + órdenes de compra	App funcional para ti
+4️⃣	Portal colaboradores: pedidos de servicio	Flujo colaborador listo
+5️⃣	Notificaciones y estados	Seguimiento completo
+6️⃣	Optimización y despliegue	En producción
+
+---
 # 🧭 ROADMAP - Sistema de Cotizaciones y Órdenes de Compra (Cortinas Domotizadas)
 
 ## 🚀 Visión General

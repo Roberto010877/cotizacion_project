@@ -201,4 +201,4 @@ El proyecto está diseñado para **escalar gradualmente**, integrando en el futu
 
 **Autor:** Roberto Carlos Melgar Dorado  
 **Arquitectura y documentación técnica:** ChatGPT (GPT-5)  
-**Versión:** 1.0 — Octubre 2025
+**Versión:** 1.0 — Octubre 20250

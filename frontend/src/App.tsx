@@ -15,6 +15,10 @@ import {
 import { LayoutDashboard, ClipboardList, ShoppingCart, Users, Settings, LogOut, UserCircle } from "lucide-react";
 
 import CotizacionesPage from "@/pages/Cotizaciones";
+import ClientesPage from "@/pages/Clientes";
+import ProveedoresPage from "@/pages/Proveedores";
+import OrdenesCompraPage from "@/pages/OrdenesCompra";
+import ProductosPage from "@/pages/Productos";
 import LoginPage from "@/pages/Login";
 import SettingsPage from "@/pages/Settings";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
@@ -29,16 +33,6 @@ import axiosInstance from "./lib/axios.new";
 const Dashboard = () => {
   const { t } = useAppTranslation(['navigation']); 
   return <Page title={t('navigation:dashboard')} description={t('navigation:dashboard_description')} />;
-};
-
-const OrdenesCompra = () => {
-  const { t } = useAppTranslation(['navigation']);
-  return <Page title={t('navigation:purchase_orders')} description={t('navigation:purchase_orders_description')} />;
-};
-
-const Proveedores = () => {
-  const { t } = useAppTranslation(['navigation']);
-  return <Page title={t('navigation:suppliers')} description={t('navigation:suppliers_description')} />;
 };
 
 const Page = ({ title, description }: { title: string, description: string }) => {
@@ -136,6 +130,7 @@ const DashboardLayout = () => {
               <NavLink to="/cotizaciones"><ClipboardList /><span>{t('navigation:quotes')}</span></NavLink>
               <NavLink to="/ordenes-compra"><ShoppingCart /><span>{t('navigation:purchase_orders')}</span></NavLink>
               <NavLink to="/proveedores"><Users /><span>{t('navigation:suppliers')}</span></NavLink>
+              <NavLink to="/clientes"><Users /><span>{t('navigation:clients')}</span></NavLink>
               <NavLink to="/settings"><Settings /><span>{t('navigation:settings')}</span></NavLink>
             </nav>
           </CardContent>
@@ -216,8 +211,10 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="cotizaciones" element={<CotizacionesPage />} />
-          <Route path="ordenes-compra" element={<OrdenesCompra />} />
-          <Route path="proveedores" element={<Proveedores />} />
+          <Route path="ordenes-compra" element={<OrdenesCompraPage />} />
+          <Route path="proveedores" element={<ProveedoresPage />} />
+          <Route path="clientes" element={<ClientesPage />} />
+          <Route path="productos" element={<ProductosPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         {/* Optional: Redirect any other path to login or dashboard */}

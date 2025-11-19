@@ -12,5 +12,9 @@
   "access_denied_description": "Esta sección requiere permisos de administrador para acceder a la gestión de usuarios y configuraciones del sistema.",
   "access_denied_contact": "Para solicitar acceso, contacta al administrador del sistema",
   "return_to_dashboard": "Ir al Panel Principal",
-  "go_back": "Volver Atrás"
+  "go_back": "Volver Atrás",
+  "error_loading_data": "Error al cargar los datos",
+  "edit": "Editar",
+  "delete": "Eliminar",
+  "cancel": "Cancelar"
 }
