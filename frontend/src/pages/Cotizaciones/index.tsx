@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   Card,
@@ -9,103 +9,186 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/common/DataTable";
-import { useAppTranslation } from "@/i18n/hooks"; 
+import Pagination from "@/components/common/Pagination";
+import InfiniteScroll from "@/components/common/InfiniteScroll";
+import { useAppTranslation } from "@/i18n/hooks";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import usePagination from "@/hooks/usePagination";
+import usePaginatedCotizaciones from "@/hooks/usePaginatedCotizaciones";
 
-// Define the shape of our data
 type Cotizacion = {
-  id: string;
-  cliente: string;
+  id: string | number;
+  numero?: string;
+  cliente: string | number;
   fecha: string;
+  fecha_creacion?: string;
   total: number;
   estado: string;
 };
 
-// Mock data based on ROADMAP.md
-const cotizacionesData: Cotizacion[] = [
-  {
-    id: "COT-001",
-    cliente: "Cliente Ejemplo 1",
-    fecha: "2025-10-22",
-    total: 1500.0,
-    estado: "Enviada",
-  },
-  {
-    id: "COT-002",
-    cliente: "Cliente Ejemplo 2",
-    fecha: "2025-10-21",
-    total: 250.75,
-    estado: "Borrador",
-  },
-  {
-    id: "COT-003",
-    cliente: "Cliente Ejemplo 3",
-    fecha: "2025-10-20",
-    total: 3200.5,
-    estado: "Aceptada",
-  },
-];
-
 const CotizacionesPage = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [data, setData] = useState<Cotizacion[]>([]);
-  const { t } = useAppTranslation(['navigation']); // ← AHORA SÍ SE USA
+  const { t } = useAppTranslation(['navigation', 'common']);
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
+  // Paginación
+  const pagination = usePagination({
+    initialPage: 1,
+    initialPageSize: 25,
+    pageSizeOptions: [10, 25, 50, 100],
+  });
+
+  // Datos paginados
+  const { data, isLoading } = usePaginatedCotizaciones({
+    page: pagination.currentPage,
+    pageSize: pagination.pageSize,
+  });
+
+  // Actualizar total de registros cuando llegan los datos
   useEffect(() => {
-    // Simulate fetching data
-    const timer = setTimeout(() => {
-      setData(cotizacionesData);
-      setIsLoading(false);
-    }, 2000); // 2 second delay
+    if (data?.count) {
+      pagination.setTotalCount(data.count);
+    }
+  }, [data?.count, pagination]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Skeleton rows para loading state
+  const skeletonRows = Array(pagination.pageSize).fill(null);
 
-  // Define the columns for the table - DENTRO del componente para usar t()
+  // Define the columns for the table
   const columns: ColumnDef<Cotizacion>[] = [
     {
+      id: "col-id",
       accessorKey: "id",
       header: "ID",
     },
     {
+      id: "col-numero",
+      accessorKey: "numero",
+      header: t('common:number'),
+    },
+    {
+      id: "col-cliente",
       accessorKey: "cliente",
-      header: t('navigation:client'), // ← TRADUCIDO
+      header: t('navigation:client'),
     },
     {
-      accessorKey: "fecha", 
-      header: t('navigation:date'), // ← TRADUCIDO
-    },
-    {
+      id: "col-total",
       accessorKey: "total",
-      header: () => <div className="text-right">{t('navigation:total')}</div>, // ← TRADUCIDO
+      header: () => <div className="text-right">{t('navigation:total')}</div>,
       cell: ({ row }) => {
         const amount = parseFloat(row.getValue("total"));
         const formatted = new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: "USD",
         }).format(amount);
-
         return <div className="text-right font-medium">{formatted}</div>;
       },
     },
     {
+      id: "col-estado",
       accessorKey: "estado",
-      header: t('navigation:status'), // ← TRADUCIDO
+      header: t('navigation:status'),
+    },
+    {
+      id: "col-fecha",
+      accessorKey: "fecha_creacion",
+      header: t('navigation:date'),
+    },
+    {
+      id: "col-actions",
+      header: t('common:actions'),
+      cell: () => (
+        <Button variant="ghost" size="sm">
+          {t('common:view')}
+        </Button>
+      ),
     },
   ];
+
+  // Columnas móvil
+  const columnsMobile: ColumnDef<Cotizacion>[] = [
+    {
+      id: "mobile-numero",
+      accessorKey: "numero",
+      header: t('common:number'),
+    },
+    {
+      id: "mobile-cliente",
+      accessorKey: "cliente",
+      header: t('navigation:client'),
+    },
+    {
+      id: "mobile-total",
+      accessorKey: "total",
+      header: t('navigation:total'),
+      cell: ({ row }) => {
+        const amount = parseFloat(row.getValue("total"));
+        const formatted = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(amount);
+        return <div className="text-right">{formatted}</div>;
+      },
+    },
+    {
+      id: "mobile-actions",
+      header: t('common:actions'),
+      cell: () => (
+        <Button variant="ghost" size="sm">
+          {t('common:view')}
+        </Button>
+      ),
+    },
+  ];
+
+  const cotizaciones = data?.results || [];
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>{t('navigation:quotes_panel')}</CardTitle> {/* ← TRADUCIDO */}
+          <CardTitle>{t('navigation:quotes_panel')}</CardTitle>
           <CardDescription>
-            {t('navigation:quotes_description')} {/* ← TRADUCIDO */}
+            {t('navigation:quotes_description')}
           </CardDescription>
         </div>
-        <Button>{t('navigation:create_quote')}</Button> {/* ← TRADUCIDO */}
+        <Button>{t('navigation:create_quote')}</Button>
       </CardHeader>
       <CardContent>
-        <DataTable columns={columns} data={data} isLoading={isLoading} />
+        {isMobile ? (
+          // Mobile: Infinite Scroll
+          <InfiniteScroll
+            onLoadMore={pagination.loadMore}
+            hasMore={pagination.hasNextPage}
+            isLoading={isLoading}
+          >
+            <DataTable
+              columns={columnsMobile}
+              data={isLoading ? skeletonRows : cotizaciones}
+              isLoading={isLoading}
+            />
+          </InfiniteScroll>
+        ) : (
+          // Desktop: Table + Pagination
+          <>
+            <DataTable
+              columns={columns}
+              data={isLoading ? skeletonRows : cotizaciones}
+              isLoading={isLoading}
+            />
+            <div className="mt-4">
+              <Pagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                pageSize={pagination.pageSize}
+                totalCount={pagination.totalCount}
+                onPageChange={pagination.setPage}
+                onPageSizeChange={pagination.setPageSize}
+                pageSizeOptions={[10, 25, 50, 100]}
+                isLoading={isLoading}
+              />
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

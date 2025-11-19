@@ -35,6 +35,12 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
   })
 
+  // Generate random widths for skeleton cells to look more natural
+  const getSkeletonWidth = (index: number) => {
+    const widths = ['w-24', 'w-32', 'w-20', 'w-28', 'w-16', 'w-36'];
+    return widths[index % widths.length];
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -56,11 +62,11 @@ export function DataTable<TData, TValue>({
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            Array.from({ length: 10 }).map((_, i) => (
-              <TableRow key={i}>
+            Array.from({ length: 8 }).map((_, i) => (
+              <TableRow key={i} className="hover:bg-transparent">
                 {columns.map((_, j) => (
-                  <TableCell key={j}>
-                    <Skeleton className="h-6" />
+                  <TableCell key={j} className="py-4">
+                    <Skeleton className={`h-5 ${getSkeletonWidth(j)} rounded`} />
                   </TableCell>
                 ))}
               </TableRow>

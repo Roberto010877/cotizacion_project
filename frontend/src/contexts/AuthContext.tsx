@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '@/redux/authSlice';
 import axiosInstance from '@/lib/axios';
-import { useTranslation } from 'react-i18next';
 
 interface AuthContextType {
   isLoading: boolean;
@@ -15,7 +14,6 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
-  const { i18n } = useTranslation();
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -31,8 +29,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
           console.error('Error in auth initialization:', error);
           // Log the specific error response if available
-          if (axios.isAxiosError(error) && error.response) {
-            console.error('Auth initialization error response:', error.response.status, error.response.data);
+          if (error instanceof Error && 'response' in error) {
+            console.error('Auth initialization error response:', (error as any).response?.status, (error as any).response?.data);
           }
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');

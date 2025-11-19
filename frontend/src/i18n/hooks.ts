@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { AvailableNamespaces } from './config';
+import type { AvailableNamespaces } from './i18n';
 import type { TranslationKey } from './types';
 
 export const useAppTranslation = (ns?: AvailableNamespaces | AvailableNamespaces[]) => {

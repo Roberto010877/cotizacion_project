@@ -47,7 +47,7 @@ const LoginPage = () => {
       }
 
       // 2. Get User Info
-      const userResponse = await axiosInstance.get("/api/users/me/", {
+      const userResponse = await axiosInstance.get("/api/v1/users/me/", {
         headers: {
           Authorization: `Bearer ${access}`,
         },

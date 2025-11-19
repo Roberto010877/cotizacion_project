@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAppTranslation } from '@/i18n/hooks';
 import { useLanguageSync } from '@/hooks/useLanguageSync';
 import { Button } from '@/components/ui/button';

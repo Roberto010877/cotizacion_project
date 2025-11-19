@@ -17,9 +17,12 @@ import ptLogin from './locales/pt/login.json';
 import esDashboard from './locales/es/dashboard.json';
 import enDashboard from './locales/en/dashboard.json';
 import ptDashboard from './locales/pt/dashboard.json';
+import esClientes from './locales/es/clientes.json';
+import enClientes from './locales/en/clientes.json';
+import ptClientes from './locales/pt/clientes.json';
 
 // Definición de namespaces disponibles
-export const availableNamespaces = ["common", "login", "dashboard", "navigation"] as const;
+export const availableNamespaces = ["common", "login", "dashboard", "navigation", "clientes"] as const;
 export type AvailableNamespaces = typeof availableNamespaces[number];
 
 // Definición de idiomas disponibles
@@ -35,19 +38,22 @@ i18n
         navigation: esNavigation,
         common: esCommon,
         login: esLogin,
-        dashboard: esDashboard
+        dashboard: esDashboard,
+        clientes: esClientes
       },
       en: {
         navigation: enNavigation,
         common: enCommon,
         login: enLogin,
-        dashboard: enDashboard
+        dashboard: enDashboard,
+        clientes: enClientes
       },
       pt: {
         navigation: ptNavigation,
         common: ptCommon,
         login: ptLogin,
-        dashboard: ptDashboard
+        dashboard: ptDashboard,
+        clientes: ptClientes
       },
     },
     fallbackLng: "es",
