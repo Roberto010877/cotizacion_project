@@ -319,7 +319,6 @@ class AsignacionTareaSerializer(serializers.ModelSerializer):
     )
     
     class Meta:
-        from .models import AsignacionTarea
         model = AsignacionTarea
         fields = [
             'id',
