@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   Card,
@@ -8,6 +8,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { DataTable } from "@/components/common/DataTable";
 import Pagination from "@/components/common/Pagination";
 import InfiniteScroll from "@/components/common/InfiniteScroll";
@@ -20,6 +28,7 @@ import type { PedidoServicio } from "@/hooks/usePaginatedPedidosServicio";
 const PedidosServicioPage = () => {
   const { t } = useAppTranslation(['navigation', 'common']);
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const [isCreating, setIsCreating] = useState(false);
 
   // Paginación
   const pagination = usePagination({
@@ -140,7 +149,9 @@ const PedidosServicioPage = () => {
             {t('pedidos_servicio:description')}
           </CardDescription>
         </div>
-        <Button>{t('pedidos_servicio:create_new')}</Button>
+        <Button onClick={() => setIsCreating(true)}>
+          {t('pedidos_servicio:create_new')}
+        </Button>
       </CardHeader>
       <CardContent>
         {isMobile ? (
@@ -179,6 +190,29 @@ const PedidosServicioPage = () => {
           </>
         )}
       </CardContent>
+      <Dialog open={isCreating} onOpenChange={setIsCreating}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('pedidos_servicio:create_new')}</DialogTitle>
+            <DialogDescription>
+              {t('pedidos_servicio:create_new_description') || 'Ingresa los datos del nuevo pedido de servicio'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Funcionalidad en desarrollo. Por favor, intenta nuevamente más tarde.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreating(false)}>
+              {t('common:cancel')}
+            </Button>
+            <Button disabled>
+              {t('common:save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
