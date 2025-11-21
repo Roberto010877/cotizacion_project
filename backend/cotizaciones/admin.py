@@ -8,12 +8,12 @@ class DetalleCotizacionInline(admin.TabularInline):
 
 @admin.register(Cotizacion)
 class CotizacionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cliente', 'estado', 'total', 'fecha_vencimiento', 'creado_por')
+    list_display = ('numero_cotizacion', 'cliente', 'estado', 'total', 'fecha_vencimiento', 'creado_por')
     list_filter = ('estado', 'fecha_vencimiento', 'created_at')
-    search_fields = ('cliente__nombre', 'id')
+    search_fields = ('numero_cotizacion', 'cliente__nombre')
     inlines = [DetalleCotizacionInline]
     autocomplete_fields = ['cliente']
-    readonly_fields = ('total',)
+    readonly_fields = ('numero_cotizacion', 'total')
 
 @admin.register(DetalleCotizacion)
 class DetalleCotizacionAdmin(admin.ModelAdmin):

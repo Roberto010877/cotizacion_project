@@ -4,13 +4,13 @@ import type { PaginatedResponse } from './useClientes';
 
 export interface Cotizacion {
   id: number;
-  numero: string;
+  numero_cotizacion: string;
   cliente: number;
   cliente_nombre?: string;
-  fecha_creacion: string;
+  fecha_vencimiento: string;
   total: number;
   estado: string;
-  descripcion?: string;
+  observaciones?: string;
 }
 
 interface UsePaginatedCotizacionesOptions {

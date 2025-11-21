@@ -16,6 +16,15 @@ class Cotizacion(BaseModel):
         RECHAZADA = 'RECHAZADA', 'Rechazada'
         CANCELADA = 'CANCELADA', 'Cancelada'
 
+    numero_cotizacion = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Número de Cotización",
+        help_text="Identificador único de la cotización (ej: COT-0000001)",
+        editable=False,
+        null=True,
+        blank=True
+    )
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='cotizaciones')
     fecha_vencimiento = models.DateField(blank=True, null=True, verbose_name="Fecha de Vencimiento")
     estado = models.CharField(
@@ -28,7 +37,29 @@ class Cotizacion(BaseModel):
     )
 
     def __str__(self):
-        return f"Cotización {self.id} para {self.cliente.nombre}"
+        return f"Cotización {self.numero_cotizacion} para {self.cliente.nombre}"
+    
+    def save(self, *args, **kwargs):
+        # Generar número de cotización si no existe (solo en creación)
+        if not self.numero_cotizacion:
+            from common.models import TablaCorrelativos
+            
+            # Obtener o crear la tabla de correlativos para cotizaciones
+            correlativo, created = TablaCorrelativos.objects.get_or_create(
+                prefijo='COT',
+                defaults={
+                    'nombre': 'Cotizaciones',
+                    'numero': 0,
+                    'longitud': 7,
+                    'estado': 'Activo',
+                    'descripcion': 'Correlativo automático para cotizaciones'
+                }
+            )
+            
+            # Generar el siguiente código de manera atómica
+            self.numero_cotizacion = correlativo.obtener_siguiente_codigo()
+        
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-created_at']

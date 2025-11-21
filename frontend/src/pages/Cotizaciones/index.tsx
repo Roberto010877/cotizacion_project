@@ -18,10 +18,9 @@ import usePaginatedCotizaciones from "@/hooks/usePaginatedCotizaciones";
 
 type Cotizacion = {
   id: string | number;
-  numero?: string;
+  numero_cotizacion?: string;
   cliente: string | number;
-  fecha: string;
-  fecha_creacion?: string;
+  fecha_vencimiento: string;
   total: number;
   estado: string;
 };
@@ -62,7 +61,7 @@ const CotizacionesPage = () => {
     },
     {
       id: "col-numero",
-      accessorKey: "numero",
+      accessorKey: "numero_cotizacion",
       header: t('common:number'),
     },
     {
@@ -90,7 +89,7 @@ const CotizacionesPage = () => {
     },
     {
       id: "col-fecha",
-      accessorKey: "fecha_creacion",
+      accessorKey: "fecha_vencimiento",
       header: t('navigation:date'),
     },
     {
