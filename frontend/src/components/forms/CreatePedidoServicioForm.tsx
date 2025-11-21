@@ -174,7 +174,7 @@ export default function CreatePedidoServicioForm({
                 name="solicitante"
                 value={formData.solicitante}
                 onChange={handleFormChange}
-                placeholder="Sra. Rita"
+                placeholder={t('pedidos_servicio:requester_default')}
               />
             </div>
 
@@ -193,24 +193,26 @@ export default function CreatePedidoServicioForm({
           {/* Fila: Fecha de Inicio y Fecha de Fin */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fecha_inicio">{t('common:start_date')}</Label>
+              <Label htmlFor="fecha_inicio">{t('pedidos_servicio:start_date_label')}</Label>
               <Input
                 id="fecha_inicio"
                 name="fecha_inicio"
                 type="date"
                 value={formData.fecha_inicio}
                 onChange={handleFormChange}
+                placeholder={t('pedidos_servicio:start_date_placeholder')}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fecha_fin">{t('common:end_date')}</Label>
+              <Label htmlFor="fecha_fin">{t('pedidos_servicio:end_date_label')}</Label>
               <Input
                 id="fecha_fin"
                 name="fecha_fin"
                 type="date"
                 value={formData.fecha_fin}
                 onChange={handleFormChange}
+                placeholder={t('pedidos_servicio:end_date_placeholder')}
               />
             </div>
           </div>
