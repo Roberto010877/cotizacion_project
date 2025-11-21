@@ -61,7 +61,6 @@ export const EditClienteForm: React.FC<EditClienteFormProps> = ({
     formState: { errors },
     reset,
     setValue,
-    watch,
   } = useForm<ClienteFormData>({
     defaultValues: {
       nombre: cliente?.nombre || '',

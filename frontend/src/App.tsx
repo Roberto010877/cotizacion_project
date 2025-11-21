@@ -19,6 +19,7 @@ import ClientesPage from "@/pages/Clientes";
 import ProveedoresPage from "@/pages/Proveedores";
 import OrdenesCompraPage from "@/pages/OrdenesCompra";
 import ProductosPage from "@/pages/Productos";
+import PedidosServicioPage from "@/pages/PedidosServicio";
 import LoginPage from "@/pages/Login";
 import SettingsPage from "@/pages/Settings";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
@@ -215,6 +216,7 @@ function App() {
           <Route path="proveedores" element={<ProveedoresPage />} />
           <Route path="clientes" element={<ClientesPage />} />
           <Route path="productos" element={<ProductosPage />} />
+          <Route path="pedidos-servicio" element={<PedidosServicioPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         {/* Optional: Redirect any other path to login or dashboard */}

@@ -157,7 +157,9 @@ class ItemPedidoServicio(BaseModel):
         PedidoServicio,
         on_delete=models.CASCADE,
         related_name='items',
-        verbose_name="Pedido de Servicio"
+        verbose_name="Pedido de Servicio",
+        null=True,
+        blank=True
     )
     
     # --- Información del Ambiente ---

@@ -20,9 +20,12 @@ import ptDashboard from './locales/pt/dashboard.json';
 import esClientes from './locales/es/clientes.json';
 import enClientes from './locales/en/clientes.json';
 import ptClientes from './locales/pt/clientes.json';
+import esPedidosServicio from './locales/es/pedidos-servicio.json';
+import enPedidosServicio from './locales/en/pedidos-servicio.json';
+import ptPedidosServicio from './locales/pt/pedidos-servicio.json';
 
 // Definición de namespaces disponibles
-export const availableNamespaces = ["common", "login", "dashboard", "navigation", "clientes"] as const;
+export const availableNamespaces = ["common", "login", "dashboard", "navigation", "clientes", "pedidos_servicio"] as const;
 export type AvailableNamespaces = typeof availableNamespaces[number];
 
 // Definición de idiomas disponibles
@@ -39,25 +42,26 @@ i18n
         common: esCommon,
         login: esLogin,
         dashboard: esDashboard,
-        clientes: esClientes
+        clientes: esClientes,
+        pedidos_servicio: esPedidosServicio
       },
       en: {
         navigation: enNavigation,
         common: enCommon,
         login: enLogin,
         dashboard: enDashboard,
-        clientes: enClientes
+        clientes: enClientes,
+        pedidos_servicio: enPedidosServicio
       },
       pt: {
         navigation: ptNavigation,
         common: ptCommon,
         login: ptLogin,
         dashboard: ptDashboard,
-        clientes: ptClientes
-      },
+        clientes: ptClientes,
+        pedidos_servicio: ptPedidosServicio
+      }
     },
-    fallbackLng: "es",
-    supportedLngs: availableLanguages,
     ns: availableNamespaces,
     defaultNS: "login", // ← CAMBIADO de "common" a "login"
     detection: {
