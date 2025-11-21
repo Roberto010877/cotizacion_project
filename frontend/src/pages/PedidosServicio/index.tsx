@@ -11,24 +11,46 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/common/DataTable";
 import Pagination from "@/components/common/Pagination";
 import InfiniteScroll from "@/components/common/InfiniteScroll";
+import CreatePedidoServicioForm from "@/components/forms/CreatePedidoServicioForm";
 import { useAppTranslation } from "@/i18n/hooks";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import usePagination from "@/hooks/usePagination";
 import usePaginatedPedidosServicio from "@/hooks/usePaginatedPedidosServicio";
 import type { PedidoServicio } from "@/hooks/usePaginatedPedidosServicio";
+import axiosInstance from "@/lib/axios.new";
+import toast from "react-hot-toast";
 
 const PedidosServicioPage = () => {
   const { t } = useAppTranslation(['navigation', 'common']);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [isCreating, setIsCreating] = useState(false);
+  const [clientes, setClientes] = useState<Array<{ id: number; nombre: string }>>([]);
+  const [isLoadingForm, setIsLoadingForm] = useState(false);
+
+  // Cargar clientes para el formulario
+  useEffect(() => {
+    const fetchClientes = async () => {
+      try {
+        const response = await axiosInstance.get('/api/clientes/?page_size=1000');
+        const clientesList = response.data.results.map((cliente: any) => ({
+          id: cliente.id,
+          nombre: cliente.nombre,
+        }));
+        setClientes(clientesList);
+      } catch (error) {
+        console.error('Error cargando clientes:', error);
+        toast.error('Error al cargar los clientes');
+      }
+    };
+
+    fetchClientes();
+  }, []);
 
   // Paginación
   const pagination = usePagination({
@@ -191,26 +213,58 @@ const PedidosServicioPage = () => {
         )}
       </CardContent>
       <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('pedidos_servicio:create_new')}</DialogTitle>
-            <DialogDescription>
-              {t('pedidos_servicio:create_new_description') || 'Ingresa los datos del nuevo pedido de servicio'}
-            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Funcionalidad en desarrollo. Por favor, intenta nuevamente más tarde.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreating(false)}>
-              {t('common:cancel')}
-            </Button>
-            <Button disabled>
-              {t('common:save')}
-            </Button>
-          </DialogFooter>
+          <CreatePedidoServicioForm
+            clientes={clientes}
+            isLoading={isLoadingForm}
+            onCancel={() => setIsCreating(false)}
+            onSubmit={async (data) => {
+              setIsLoadingForm(true);
+              try {
+                // Crear el pedido servicio
+                const pedidoResponse = await axiosInstance.post('/api/pedidos-servicio/', {
+                  cliente: data.cliente,
+                  solicitante: data.solicitante,
+                  supervisor: data.supervisor,
+                  fecha_inicio: data.fecha_inicio,
+                  fecha_fin: data.fecha_fin,
+                  observaciones: data.observaciones,
+                  estado: 'CREADO',
+                });
+
+                const pedidoId = pedidoResponse.data.id;
+
+                // Crear los items del pedido
+                for (const item of data.items) {
+                  await axiosInstance.post(`/api/pedidos-servicio/${pedidoId}/items/`, {
+                    ambiente: item.ambiente,
+                    modelo: item.modelo,
+                    tejido: item.tejido,
+                    largura: parseFloat(item.largura),
+                    altura: parseFloat(item.altura),
+                    cantidad_piezas: parseInt(item.cantidad_piezas),
+                    posicion_tejido: item.posicion_tejido,
+                    lado_comando: item.lado_comando,
+                    acionamiento: item.acionamiento,
+                    observaciones: item.observaciones,
+                  });
+                }
+
+                toast.success('Pedido creado exitosamente');
+                setIsCreating(false);
+                // Recargar la lista de pedidos
+                pagination.setPage(1);
+              } catch (error: any) {
+                console.error('Error creando pedido:', error);
+                toast.error(error.response?.data?.detail || 'Error al crear el pedido');
+              } finally {
+                setIsLoadingForm(false);
+              }
+            }}
+          />
         </DialogContent>
       </Dialog>
     </Card>
