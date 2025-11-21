@@ -20,28 +20,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { validateAddressWithGoogle, generateMapsUrl, type GeocodingResult } from '@/lib/addressUtils';
 
 interface CreateClienteFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   paisOptions: any[];
-  tipoDocumentoOptions: any[];
   tiposClienteOptions: any[];
   origenesClienteOptions: any[];
 }
 
 interface ClienteFormData {
   nombre: string;
-  numero_documento: string;
-  tipo_documento: string;
-  pais: string;
   email: string;
   telefono: string;
   direccion: string;
+  pais: string;
   tipo: string;
   origen: string;
   preferencias_contacto: string;
+  telefono_contacto: string;
+  ubicacion_lat?: number;
+  ubicacion_lng?: number;
 }
 
 export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
@@ -49,12 +50,14 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
   onOpenChange,
   onSuccess,
   paisOptions,
-  tipoDocumentoOptions,
   tiposClienteOptions,
   origenesClienteOptions,
 }) => {
   const { t } = useAppTranslation(['clientes', 'common']);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isValidatingAddress, setIsValidatingAddress] = useState(false);
+  const [validatedAddress, setValidatedAddress] = useState<GeocodingResult | null>(null);
+  const [lastValidatedAddress, setLastValidatedAddress] = useState<string>('');
 
   const {
     register,
@@ -72,20 +75,134 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
   });
 
   const paisValue = watch('pais');
+  const direccionValue = watch('direccion');
 
-  // Filtrar tipos de documento según el país seleccionado
-  const tiposDocumentoFiltrados = tipoDocumentoOptions.filter(
-    (tipo) => tipo.pais === parseInt(paisValue)
-  );
+  // Obtener nombre del país seleccionado
+  const getPaisNombre = (): string => {
+    if (!paisValue) return '';
+    const pais = paisOptions.find((p) => String(p.id) === paisValue);
+    return pais?.nombre || '';
+  };
+
+  // Función para validar dirección con Google (automática)
+  const handleValidateAddress = async (addressToValidate?: string) => {
+    try {
+      const addressValue = addressToValidate || direccionValue;
+
+      // Si la dirección está vacía o no cambió, no hacer nada
+      if (!addressValue || !paisValue) {
+        return;
+      }
+
+      // Si la dirección es la misma que la última validada, no revalidar
+      if (addressValue === lastValidatedAddress) {
+        return;
+      }
+
+      setIsValidatingAddress(true);
+
+      const paisNombre = getPaisNombre();
+      if (!paisNombre) {
+        return;
+      }
+
+      const result = await validateAddressWithGoogle(addressValue, paisNombre);
+      setValidatedAddress(result);
+      setLastValidatedAddress(addressValue);
+      
+      // Auto-llenar el campo de dirección con la dirección limpia
+      setValue('direccion', result.formattedAddress);
+      setValue('ubicacion_lat', result.latitude);
+      setValue('ubicacion_lng', result.longitude);
+
+      toast.success(t('clientes:address_validated') || 'Dirección validada correctamente');
+    } catch (error: any) {
+      console.error('Error validating address:', error);
+      // No mostrar error si es validación automática silenciosa
+      // Solo mostrar si fue manual
+    } finally {
+      setIsValidatingAddress(false);
+    }
+  };
+
+  // Handler para validación al salir del campo (onBlur)
+  const handleAddressBlur = () => {
+    if (direccionValue && paisValue && direccionValue !== lastValidatedAddress) {
+      handleValidateAddress(direccionValue);
+    }
+  };
+
+  // Función para obtener ubicación actual
+  const handleUseMyLocation = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setValue('ubicacion_lat', latitude);
+          setValue('ubicacion_lng', longitude);
+
+          try {
+            // Reverse geocoding: coordenadas → dirección
+            setIsValidatingAddress(true);
+            
+            // Usar Google Maps API para reverse geocoding
+            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+            if (apiKey) {
+              const response = await fetch(
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
+              );
+              const data = await response.json();
+              
+              if (data.results.length > 0) {
+                const address = data.results[0].formatted_address;
+                setValue('direccion', address);
+                setValidatedAddress({
+                  formattedAddress: address,
+                  latitude,
+                  longitude,
+                });
+              }
+            }
+
+            toast.success(t('clientes:address_validated') || 'Ubicación obtenida correctamente');
+          } catch (error) {
+            console.error('Error in reverse geocoding:', error);
+            toast.success('Ubicación obtenida, pero no se pudo obtener la dirección');
+          } finally {
+            setIsValidatingAddress(false);
+          }
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          toast.error(t('common:error') || 'No se pudo obtener la ubicación. Verifica los permisos.');
+        }
+      );
+    } else {
+      toast.error('Geolocalización no soportada en este navegador');
+    }
+  };
+
+  // Función para abrir en Google Maps
+  const handleOpenInMaps = () => {
+    if (validatedAddress?.formattedAddress) {
+      const mapsUrl = generateMapsUrl(validatedAddress.formattedAddress);
+      window.open(mapsUrl, '_blank');
+    }
+  };
 
   const onSubmit = async (data: ClienteFormData) => {
     try {
       setIsSubmitting(true);
 
       const payload = {
-        ...data,
+        nombre: data.nombre,
+        email: data.email,
+        telefono: data.telefono_contacto,
+        direccion: data.direccion,
         pais: parseInt(data.pais),
-        tipo_documento: parseInt(data.tipo_documento),
+        tipo: data.tipo,
+        origen: data.origen,
+        preferencias_contacto: data.preferencias_contacto,
       };
 
       await axiosInstance.post('/api/v1/clientes/', payload);
@@ -165,15 +282,28 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Teléfono */}
+              {/* Teléfono de Contacto */}
               <div className="space-y-2">
-                <Label htmlFor="telefono">{t('clientes:phone')}</Label>
+                <Label htmlFor="telefono_contacto">{t('clientes:contact_phone')} *</Label>
                 <Input
-                  id="telefono"
+                  id="telefono_contacto"
                   placeholder={t('clientes:phone_placeholder') || '+591-2-1234567'}
-                  {...register('telefono')}
+                  {...register('telefono_contacto', {
+                    required: t('clientes:contact_phone_required') || 'El teléfono de contacto es obligatorio',
+                    validate: (value) => {
+                      const digits = value.replace(/\D/g, '');
+                      if (digits.length < 7 || digits.length > 15) {
+                        return t('clientes:contact_phone_invalid') || 'El teléfono debe tener entre 7 y 15 dígitos';
+                      }
+                      return true;
+                    },
+                  })}
+                  className={errors.telefono_contacto ? 'border-red-500' : ''}
                   disabled={isSubmitting}
                 />
+                {errors.telefono_contacto && (
+                  <p className="text-sm text-red-500">{errors.telefono_contacto.message}</p>
+                )}
               </div>
 
               {/* Dirección */}
@@ -183,28 +313,27 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                   id="direccion"
                   placeholder={t('clientes:address_placeholder') || 'Dirección completa'}
                   {...register('direccion')}
-                  disabled={isSubmitting}
+                  onBlur={handleAddressBlur}
+                  disabled={isSubmitting || isValidatingAddress}
                 />
               </div>
             </div>
           </div>
 
-          {/* Sección 2: Información de Documentos */}
+          {/* Sección 2: Ubicación del Cliente */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-gray-700">
-              {t('clientes:document_info') || 'Información de Documentos'}
+              {t('clientes:location_section') || 'Ubicación del Cliente'}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* País */}
               <div className="space-y-2">
-                <Label htmlFor="pais">{t('clientes:country')} *</Label>
+                <Label htmlFor="pais">{t('clientes:country_context')} *</Label>
                 <Select
-                  onValueChange={(value) => {
-                    setValue('pais', value);
-                    setValue('tipo_documento', '');
-                  }}
-                  disabled={isSubmitting}
+                  onValueChange={(value) => setValue('pais', value)}
+                  disabled={isSubmitting || isValidatingAddress}
+                  value={paisValue}
                 >
                   <SelectTrigger
                     id="pais"
@@ -225,58 +354,73 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                 )}
               </div>
 
-              {/* Tipo de Documento */}
+              {/* Botones de Validación */}
               <div className="space-y-2">
-                <Label htmlFor="tipo_documento">{t('clientes:document_type')} *</Label>
-                <Select
-                  onValueChange={(value) => setValue('tipo_documento', value)}
-                  disabled={isSubmitting || !paisValue}
-                >
-                  <SelectTrigger
-                    id="tipo_documento"
-                    className={errors.tipo_documento ? 'border-red-500' : ''}
+                <Label>{t('clientes:location')}</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setLastValidatedAddress('');
+                      handleValidateAddress();
+                    }}
+                    disabled={isSubmitting || isValidatingAddress || !paisValue || !direccionValue}
+                    className="flex-1"
                   >
-                    <SelectValue
-                      placeholder={
-                        paisValue
-                          ? t('clientes:select_document_type')
-                          : t('clientes:select_country_first')
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tiposDocumentoFiltrados.map((tipo) => (
-                      <SelectItem key={tipo.id} value={String(tipo.id)}>
-                        {tipo.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.tipo_documento && (
-                  <p className="text-sm text-red-500">{errors.tipo_documento.message}</p>
-                )}
+                    🔍 {t('clientes:validate_address')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleUseMyLocation}
+                    disabled={isSubmitting || isValidatingAddress || !paisValue}
+                    className="flex-1"
+                  >
+                    📍 {t('clientes:use_my_location')}
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {/* Número de Documento */}
-            <div className="space-y-2">
-              <Label htmlFor="numero_documento">
-                {t('clientes:document_number')} *
-              </Label>
-              <Input
-                id="numero_documento"
-                placeholder={t('clientes:document_number_placeholder') || 'Número del documento'}
-                {...register('numero_documento', {
-                  required:
-                    t('clientes:document_number_required') || 'El número de documento es requerido',
-                })}
-                className={errors.numero_documento ? 'border-red-500' : ''}
-                disabled={isSubmitting}
-              />
-              {errors.numero_documento && (
-                <p className="text-sm text-red-500">{errors.numero_documento.message}</p>
-              )}
-            </div>
+            {/* Mostrar Dirección Limpia - Vista Previa */}
+            {validatedAddress && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
+                <div>
+                  <p className="text-xs font-semibold text-green-700 uppercase">
+                    {t('clientes:cleaned_address')}
+                  </p>
+                  <p className="text-sm text-green-900 font-medium">
+                    {validatedAddress.formattedAddress}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-green-600">Latitud</p>
+                    <p className="text-sm font-mono text-green-900">
+                      {validatedAddress.latitude.toFixed(4)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-green-600">Longitud</p>
+                    <p className="text-sm font-mono text-green-900">
+                      {validatedAddress.longitude.toFixed(4)}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={handleOpenInMaps}
+                  disabled={isSubmitting}
+                  className="w-full"
+                >
+                  🗺️ {t('clientes:view_on_maps')}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Sección 3: Clasificación del Cliente */}

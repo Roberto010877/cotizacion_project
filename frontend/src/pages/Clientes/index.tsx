@@ -166,7 +166,6 @@ const ClientesPage: React.FC = () => {
         onOpenChange={setIsCreateDialogOpen}
         onSuccess={handleCreateSuccess}
         paisOptions={filterOptions?.paises || []}
-        tipoDocumentoOptions={filterOptions?.tipos_documento || []}
         tiposClienteOptions={filterOptions?.tipos_cliente || []}
         origenesClienteOptions={filterOptions?.origenes_cliente || []}
       />

@@ -33,13 +33,17 @@ class Cliente(BaseModel):
     
     tipo_documento = models.ForeignKey(
         TipoDocumentoConfig,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         verbose_name="Tipo de Documento",
         help_text="Tipo de documento de identificación"
     )
     
     numero_documento = models.CharField(
         max_length=50,
+        blank=True,
+        null=True,
         verbose_name="Número de Documento",
         help_text="Número completo del documento de identificación"
     )

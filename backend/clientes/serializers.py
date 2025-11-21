@@ -39,23 +39,17 @@ class ClienteCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = [
-            'nombre', 'pais', 'tipo_documento', 'numero_documento',
-            'direccion', 'telefono', 'email', 'origen', 'fecha_nacimiento',
+            'nombre', 'pais', 'direccion', 'telefono', 'email', 'origen',
             'preferencias_contacto', 'notas'
         ]
     
-    def validate(self, data):
+    def validate_pais(self, value):
         """
-        Validación personalizada para creación.
+        Validación para País: debe estar presente.
         """
-        # Verificar que el tipo de documento pertenece al país
-        if data.get('pais') and data.get('tipo_documento'):
-            if data['pais'] != data['tipo_documento'].pais:
-                raise serializers.ValidationError({
-                    'tipo_documento': 'El tipo de documento no pertenece al país seleccionado'
-                })
-        
-        return data
+        if not value:
+            raise serializers.ValidationError("El país es requerido")
+        return value
 
 class ClienteUpdateSerializer(serializers.ModelSerializer):
     class Meta:
