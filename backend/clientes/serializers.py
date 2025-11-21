@@ -55,7 +55,7 @@ class ClienteUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = [
-            'nombre', 'direccion', 'telefono', 'email', 'origen',
+            'nombre', 'pais', 'direccion', 'telefono', 'email', 'tipo', 'origen',
             'fecha_nacimiento', 'preferencias_contacto', 'notas'
         ]
 

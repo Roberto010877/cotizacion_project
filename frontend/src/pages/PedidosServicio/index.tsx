@@ -442,4 +442,4 @@ const PedidosServicioPage = () => {
   );
 };
 
-export default PedidosServicioPage;
+

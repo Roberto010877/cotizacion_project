@@ -9,4 +9,3 @@ router.register(r'asignaciones-tareas', AsignacionTareaViewSet, basename='asigna
 urlpatterns = [
     path('', include(router.urls)),
 ]
-

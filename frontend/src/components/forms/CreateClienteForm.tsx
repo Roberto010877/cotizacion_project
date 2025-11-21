@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { validateAddressWithGoogle, generateMapsUrl, type GeocodingResult } from '@/lib/addressUtils';
 
 interface CreateClienteFormProps {
   open: boolean;
@@ -41,8 +40,6 @@ interface ClienteFormData {
   origen: string;
   preferencias_contacto: string;
   telefono_contacto: string;
-  ubicacion_lat?: number;
-  ubicacion_lng?: number;
 }
 
 export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
@@ -55,9 +52,6 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
 }) => {
   const { t } = useAppTranslation(['clientes', 'common']);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isValidatingAddress, setIsValidatingAddress] = useState(false);
-  const [validatedAddress, setValidatedAddress] = useState<GeocodingResult | null>(null);
-  const [lastValidatedAddress, setLastValidatedAddress] = useState<string>('');
 
   const {
     register,
@@ -65,7 +59,6 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
     formState: { errors },
     reset,
     setValue,
-    watch,
   } = useForm<ClienteFormData>({
     defaultValues: {
       preferencias_contacto: 'WHATSAPP',
@@ -73,122 +66,6 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
       origen: 'WEB',
     },
   });
-
-  const paisValue = watch('pais');
-  const direccionValue = watch('direccion');
-
-  // Obtener nombre del país seleccionado
-  const getPaisNombre = (): string => {
-    if (!paisValue) return '';
-    const pais = paisOptions.find((p) => String(p.id) === paisValue);
-    return pais?.nombre || '';
-  };
-
-  // Función para validar dirección con Google (automática)
-  const handleValidateAddress = async (addressToValidate?: string) => {
-    try {
-      const addressValue = addressToValidate || direccionValue;
-
-      // Si la dirección está vacía o no cambió, no hacer nada
-      if (!addressValue || !paisValue) {
-        return;
-      }
-
-      // Si la dirección es la misma que la última validada, no revalidar
-      if (addressValue === lastValidatedAddress) {
-        return;
-      }
-
-      setIsValidatingAddress(true);
-
-      const paisNombre = getPaisNombre();
-      if (!paisNombre) {
-        return;
-      }
-
-      const result = await validateAddressWithGoogle(addressValue, paisNombre);
-      setValidatedAddress(result);
-      setLastValidatedAddress(addressValue);
-      
-      // Auto-llenar el campo de dirección con la dirección limpia
-      setValue('direccion', result.formattedAddress);
-      setValue('ubicacion_lat', result.latitude);
-      setValue('ubicacion_lng', result.longitude);
-
-      toast.success(t('clientes:address_validated') || 'Dirección validada correctamente');
-    } catch (error: any) {
-      console.error('Error validating address:', error);
-      // No mostrar error si es validación automática silenciosa
-      // Solo mostrar si fue manual
-    } finally {
-      setIsValidatingAddress(false);
-    }
-  };
-
-  // Handler para validación al salir del campo (onBlur)
-  const handleAddressBlur = () => {
-    if (direccionValue && paisValue && direccionValue !== lastValidatedAddress) {
-      handleValidateAddress(direccionValue);
-    }
-  };
-
-  // Función para obtener ubicación actual
-  const handleUseMyLocation = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setValue('ubicacion_lat', latitude);
-          setValue('ubicacion_lng', longitude);
-
-          try {
-            // Reverse geocoding: coordenadas → dirección
-            setIsValidatingAddress(true);
-            
-            // Usar Google Maps API para reverse geocoding
-            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-            if (apiKey) {
-              const response = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
-              );
-              const data = await response.json();
-              
-              if (data.results.length > 0) {
-                const address = data.results[0].formatted_address;
-                setValue('direccion', address);
-                setValidatedAddress({
-                  formattedAddress: address,
-                  latitude,
-                  longitude,
-                });
-              }
-            }
-
-            toast.success(t('clientes:address_validated') || 'Ubicación obtenida correctamente');
-          } catch (error) {
-            console.error('Error in reverse geocoding:', error);
-            toast.success('Ubicación obtenida, pero no se pudo obtener la dirección');
-          } finally {
-            setIsValidatingAddress(false);
-          }
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          toast.error(t('common:error') || 'No se pudo obtener la ubicación. Verifica los permisos.');
-        }
-      );
-    } else {
-      toast.error('Geolocalización no soportada en este navegador');
-    }
-  };
-
-  // Función para abrir en Google Maps
-  const handleOpenInMaps = () => {
-    if (validatedAddress?.formattedAddress) {
-      const mapsUrl = generateMapsUrl(validatedAddress.formattedAddress);
-      window.open(mapsUrl, '_blank');
-    }
-  };
 
   const onSubmit = async (data: ClienteFormData) => {
     try {
@@ -268,7 +145,7 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                   placeholder={t('clientes:email_placeholder') || 'correo@ejemplo.com'}
                   {...register('email', {
                     pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                       message: t('clientes:email_invalid') || 'Email inválido',
                     },
                   })}
@@ -282,6 +159,17 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Teléfono */}
+              <div className="space-y-2">
+                <Label htmlFor="telefono">{t('clientes:phone')}</Label>
+                <Input
+                  id="telefono"
+                  placeholder={t('clientes:phone_placeholder') || '+591-2-1234567'}
+                  {...register('telefono')}
+                  disabled={isSubmitting}
+                />
+              </div>
+
               {/* Teléfono de Contacto */}
               <div className="space-y-2">
                 <Label htmlFor="telefono_contacto">{t('clientes:contact_phone')} *</Label>
@@ -305,18 +193,20 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                   <p className="text-sm text-red-500">{errors.telefono_contacto.message}</p>
                 )}
               </div>
+            </div>
 
-              {/* Dirección */}
-              <div className="space-y-2">
-                <Label htmlFor="direccion">{t('clientes:address')}</Label>
-                <Input
-                  id="direccion"
-                  placeholder={t('clientes:address_placeholder') || 'Dirección completa'}
-                  {...register('direccion')}
-                  onBlur={handleAddressBlur}
-                  disabled={isSubmitting || isValidatingAddress}
-                />
-              </div>
+            {/* Dirección */}
+            <div className="space-y-2">
+              <Label htmlFor="direccion">{t('clientes:address')}</Label>
+              <Input
+                id="direccion"
+                placeholder={t('clientes:address_placeholder') || 'Dirección completa'}
+                {...register('direccion')}
+                disabled={isSubmitting}
+              />
+              <p className="text-xs text-gray-500">
+                {t('clientes:address_note') || 'Puedes buscar la dirección en Google Maps y copiarla aquí'}
+              </p>
             </div>
           </div>
 
@@ -326,101 +216,30 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
               {t('clientes:location_section') || 'Ubicación del Cliente'}
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* País */}
-              <div className="space-y-2">
-                <Label htmlFor="pais">{t('clientes:country_context')} *</Label>
-                <Select
-                  onValueChange={(value) => setValue('pais', value)}
-                  disabled={isSubmitting || isValidatingAddress}
-                  value={paisValue}
+            <div className="space-y-2">
+              <Label htmlFor="pais">{t('clientes:country_context')} *</Label>
+              <Select
+                onValueChange={(value) => setValue('pais', value)}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger
+                  id="pais"
+                  className={errors.pais ? 'border-red-500' : ''}
                 >
-                  <SelectTrigger
-                    id="pais"
-                    className={errors.pais ? 'border-red-500' : ''}
-                  >
-                    <SelectValue placeholder={t('clientes:select_country')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paisOptions.map((pais) => (
-                      <SelectItem key={pais.id} value={String(pais.id)}>
-                        {pais.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.pais && (
-                  <p className="text-sm text-red-500">{errors.pais.message}</p>
-                )}
-              </div>
-
-              {/* Botones de Validación */}
-              <div className="space-y-2">
-                <Label>{t('clientes:location')}</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setLastValidatedAddress('');
-                      handleValidateAddress();
-                    }}
-                    disabled={isSubmitting || isValidatingAddress || !paisValue || !direccionValue}
-                    className="flex-1"
-                  >
-                    🔍 {t('clientes:validate_address')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleUseMyLocation}
-                    disabled={isSubmitting || isValidatingAddress || !paisValue}
-                    className="flex-1"
-                  >
-                    📍 {t('clientes:use_my_location')}
-                  </Button>
-                </div>
-              </div>
+                  <SelectValue placeholder={t('clientes:select_country')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {paisOptions.map((pais) => (
+                    <SelectItem key={pais.id} value={String(pais.id)}>
+                      {pais.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.pais && (
+                <p className="text-sm text-red-500">{errors.pais.message}</p>
+              )}
             </div>
-
-            {/* Mostrar Dirección Limpia - Vista Previa */}
-            {validatedAddress && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
-                <div>
-                  <p className="text-xs font-semibold text-green-700 uppercase">
-                    {t('clientes:cleaned_address')}
-                  </p>
-                  <p className="text-sm text-green-900 font-medium">
-                    {validatedAddress.formattedAddress}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-xs text-green-600">Latitud</p>
-                    <p className="text-sm font-mono text-green-900">
-                      {validatedAddress.latitude.toFixed(4)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-green-600">Longitud</p>
-                    <p className="text-sm font-mono text-green-900">
-                      {validatedAddress.longitude.toFixed(4)}
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="default"
-                  onClick={handleOpenInMaps}
-                  disabled={isSubmitting}
-                  className="w-full"
-                >
-                  🗺️ {t('clientes:view_on_maps')}
-                </Button>
-              </div>
-            )}
           </div>
 
           {/* Sección 3: Clasificación del Cliente */}
@@ -435,8 +254,8 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                 <Label htmlFor="tipo">{t('clientes:client_type')} *</Label>
                 <Select
                   onValueChange={(value) => setValue('tipo', value)}
-                  defaultValue="NUEVO"
                   disabled={isSubmitting}
+                  defaultValue="NUEVO"
                 >
                   <SelectTrigger
                     id="tipo"
@@ -462,8 +281,8 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                 <Label htmlFor="origen">{t('clientes:client_origin')} *</Label>
                 <Select
                   onValueChange={(value) => setValue('origen', value)}
-                  defaultValue="WEB"
                   disabled={isSubmitting}
+                  defaultValue="WEB"
                 >
                   <SelectTrigger
                     id="origen"
@@ -488,45 +307,52 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
             {/* Preferencia de Contacto */}
             <div className="space-y-2">
               <Label htmlFor="preferencias_contacto">
-                {t('clientes:contact_preference')}
+                {t('clientes:contact_preference')} *
               </Label>
               <Select
                 onValueChange={(value) => setValue('preferencias_contacto', value)}
-                defaultValue="WHATSAPP"
                 disabled={isSubmitting}
+                defaultValue="WHATSAPP"
               >
-                <SelectTrigger id="preferencias_contacto">
+                <SelectTrigger
+                  id="preferencias_contacto"
+                  className={errors.preferencias_contacto ? 'border-red-500' : ''}
+                >
                   <SelectValue placeholder={t('clientes:select_preference')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="EMAIL">Email</SelectItem>
+                  <SelectItem value="EMAIL">{t('clientes:email') || 'Email'}</SelectItem>
                   <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
-                  <SelectItem value="LLAMADA">Llamada</SelectItem>
+                  <SelectItem value="LLAMADA">{t('clientes:phone_call') || 'Llamada'}</SelectItem>
                   <SelectItem value="SMS">SMS</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.preferencias_contacto && (
+                <p className="text-sm text-red-500">{errors.preferencias_contacto.message}</p>
+              )}
             </div>
           </div>
 
-          {/* Botones */}
-          <div className="flex justify-end gap-3 pt-4">
+          {/* Botones de acción */}
+          <div className="flex gap-2 justify-end pt-4 border-t">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
-              {t('common:cancel') || 'Cancelar'}
+              {t('common:cancel')}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <span className="animate-spin mr-2">⏳</span>
-                  {t('clientes:creating') || 'Creando...'}
-                </>
-              ) : (
-                t('clientes:create_client')
-              )}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="min-w-[120px]"
+            >
+              {isSubmitting
+                ? t('clientes:creating')
+                : t(
+                    'clientes:create_client'
+                  )}
             </Button>
           </div>
         </form>

@@ -351,4 +351,3 @@ class AsignacionTareaSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-

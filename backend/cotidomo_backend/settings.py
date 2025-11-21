@@ -15,7 +15,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-)s4fsgu^(x+r0sk*%bi7j
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
 
 
 # Application definition
@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'cotizaciones.apps.CotizacionesConfig',
     'ordenes_compra.apps.OrdenesCompraConfig',
     'pedidos_servicio.apps.PedidosServicioConfig',
+    'instaladores.apps.InstaladoresConfig',
 ]
 
 MIDDLEWARE = [

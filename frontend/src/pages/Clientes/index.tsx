@@ -5,6 +5,9 @@ import usePagination from '@/hooks/usePagination';
 import { useAppTranslation } from '@/i18n/hooks';
 import { Toaster } from 'react-hot-toast';
 import CreateClienteForm from '@/components/forms/CreateClienteForm';
+import EditClienteForm from '@/components/forms/EditClienteForm';
+import DeleteConfirmationDialog from '@/components/dialogs/DeleteConfirmationDialog';
+import ClienteDetailModal from '@/components/dialogs/ClienteDetailModal';
 import Pagination from '@/components/common/Pagination';
 import InfiniteScroll from '@/components/common/InfiniteScroll';
 import {
@@ -34,6 +37,10 @@ const ClientesPage: React.FC = () => {
   // Filtros
   const [searchFilters, setSearchFilters] = useState<Record<string, any>>({});
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
 
   // Paginación
   const pagination = usePagination({
@@ -70,6 +77,34 @@ const ClientesPage: React.FC = () => {
   const handleCreateSuccess = () => {
     refetch?.();
     pagination.resetPagination();
+  };
+
+  const handleEditClick = (cliente: Cliente) => {
+    setSelectedCliente(cliente);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    refetch?.();
+    setIsEditDialogOpen(false);
+    setSelectedCliente(null);
+  };
+
+  const handleDeleteClick = (cliente: Cliente) => {
+    setSelectedCliente(cliente);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteSuccess = () => {
+    refetch?.();
+    setIsDeleteDialogOpen(false);
+    setSelectedCliente(null);
+    pagination.resetPagination();
+  };
+
+  const handleViewClick = (cliente: Cliente) => {
+    setSelectedCliente(cliente);
+    setIsDetailModalOpen(true);
   };
 
   const handlePageChange = (page: number) => {
@@ -170,6 +205,32 @@ const ClientesPage: React.FC = () => {
         origenesClienteOptions={filterOptions?.origenes_cliente || []}
       />
 
+      {/* Modal de Editar Cliente */}
+      <EditClienteForm
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        cliente={selectedCliente}
+        onSuccess={handleEditSuccess}
+        paisOptions={filterOptions?.paises || []}
+        tiposClienteOptions={filterOptions?.tipos_cliente || []}
+        origenesClienteOptions={filterOptions?.origenes_cliente || []}
+      />
+
+      {/* Dialog de Confirmar Eliminación */}
+      <DeleteConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        cliente={selectedCliente}
+        onSuccess={handleDeleteSuccess}
+      />
+
+      {/* Modal de Detalles del Cliente */}
+      <ClienteDetailModal
+        open={isDetailModalOpen}
+        onOpenChange={setIsDetailModalOpen}
+        cliente={selectedCliente}
+      />
+
       <div className="bg-white shadow-md rounded-lg p-4">
         {isMobile ? (
           // Mobile: Infinite Scroll
@@ -199,11 +260,29 @@ const ClientesPage: React.FC = () => {
                       <TableCell className="text-sm">{cliente.numero_documento}</TableCell>
                       <TableCell className="text-sm">{cliente.pais_nombre}</TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm">
+                        <div className="flex gap-1 flex-wrap">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewClick(cliente)}
+                            disabled={isLoading}
+                          >
+                            {t('common:view')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(cliente)}
+                            disabled={isLoading}
+                          >
                             {t('common:edit')}
                           </Button>
-                          <Button variant="destructive" size="sm">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteClick(cliente)}
+                            disabled={isLoading}
+                          >
                             {t('common:delete')}
                           </Button>
                         </div>
@@ -250,10 +329,30 @@ const ClientesPage: React.FC = () => {
                       <TableCell>{cliente.telefono}</TableCell>
                       <TableCell>{cliente.tipo}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" className="mr-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mr-2"
+                          onClick={() => handleViewClick(cliente)}
+                          disabled={isLoading}
+                        >
+                          {t('common:view')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mr-2"
+                          onClick={() => handleEditClick(cliente)}
+                          disabled={isLoading}
+                        >
                           {t('common:edit')}
                         </Button>
-                        <Button variant="destructive" size="sm">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteClick(cliente)}
+                          disabled={isLoading}
+                        >
                           {t('common:delete')}
                         </Button>
                       </TableCell>

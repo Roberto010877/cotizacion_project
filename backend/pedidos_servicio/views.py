@@ -253,4 +253,3 @@ class AsignacionTareaViewSet(viewsets.ModelViewSet):
             # Si no tiene instalador asociado, retorna vacío
             return queryset.none()
 
-

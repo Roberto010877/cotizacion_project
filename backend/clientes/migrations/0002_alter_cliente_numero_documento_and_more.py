@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('clientes', '0001_initial'),
-        ('common', '0002_tablacorrelativos'),
+        ('common', '0001_initial'),
     ]
 
     operations = [
