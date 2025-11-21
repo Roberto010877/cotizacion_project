@@ -1,0 +1,23 @@
+{
+  "app_name": "CotizApp",
+  "app_subtitle": "Sistema de Cotizaciones", 
+  "navigation": "Navegación",
+  "dashboard": "Dashboard",
+  "dashboard_description": "Vista general del sistema",
+  "quotes": "Cotizaciones",
+  "purchase_orders": "Órdenes de Compra", 
+  "purchase_orders_description": "Gestión de órdenes de compra",
+  "suppliers": "Proveedores",
+  "suppliers_description": "Gestión de proveedores", 
+  "settings": "Configuración",
+  "logout": "Cerrar Sesión",
+  "page_content": "Contenido de la página",
+  "client": "Cliente",
+  "date": "Fecha",
+  "total": "Total", 
+  "status": "Estado",
+  "quotes_panel": "Panel de Cotizaciones",
+  "quotes_description": "Visualiza y gestiona todas tus cotizaciones",
+  "create_quote": "Crear Cotización"
+  
+}

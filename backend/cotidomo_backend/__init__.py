@@ -1,0 +1,1 @@
+# Este archivo hace que la carpeta 'settings' sea un paquete de Python.
