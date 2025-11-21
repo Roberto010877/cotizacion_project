@@ -8,12 +8,14 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.db.models import Q
 
-from .models import PedidoServicio, AsignacionTarea
+from .models import PedidoServicio, AsignacionTarea, ItemPedidoServicio
 from .serializers import (
     PedidoServicioSerializer,
     PedidoServicioListSerializer,
     PedidoServicioDetailSerializer,
     AsignacionTareaSerializer,
+    ItemPedidoServicioSerializer,
+    ItemPedidoServicioCreateSerializer,
 )
 from rest_framework.pagination import PageNumberPagination
 
@@ -81,6 +83,45 @@ class PedidoServicioViewSet(viewsets.ModelViewSet):
         serializer.save()
     
     @action(detail=True, methods=['post'])
+    def items(self, request, pk=None):
+        """
+        Endpoint para crear items en un pedido de servicio.
+        
+        Uso:
+        POST /api/v1/pedidos-servicio/{id}/items/
+        Body: {
+            "ambiente": "Varanda",
+            "modelo": "Rolô",
+            "tejido": "Screen 3% branco",
+            "largura": 2.5,
+            "altura": 1.8,
+            "cantidad_piezas": 1,
+            "posicion_tejido": "NORMAL",
+            "lado_comando": "IZQUIERDO",
+            "acionamiento": "MANUAL",
+            "observaciones": "..."
+        }
+        """
+        pedido = self.get_object()
+        
+        serializer = ItemPedidoServicioCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            # Calcular el próximo número de item para este pedido
+            ultimo_item = pedido.items.last()
+            numero_item = (ultimo_item.numero_item + 1) if ultimo_item else 1
+            
+            # Crear el item asociado al pedido
+            item = ItemPedidoServicio.objects.create(
+                pedido_servicio=pedido,
+                numero_item=numero_item,
+                **serializer.validated_data
+            )
+            
+            # Retornar el item creado usando el serializer completo
+            item_serializer = ItemPedidoServicioSerializer(item)
+            return Response(item_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
     def cambiar_estado(self, request, pk=None):
         """
         Endpoint personalizado para cambiar el estado de un pedido.
