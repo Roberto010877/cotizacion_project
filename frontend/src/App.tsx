@@ -129,6 +129,7 @@ const DashboardLayout = () => {
             <nav className="flex flex-col gap-2">
               <NavLink to="/"><LayoutDashboard /><span>{t('navigation:dashboard')}</span></NavLink>
               <NavLink to="/cotizaciones"><ClipboardList /><span>{t('navigation:quotes')}</span></NavLink>
+              <NavLink to="/pedidos-servicio"><ShoppingCart /><span>Pedidos de Servicio</span></NavLink>
               <NavLink to="/ordenes-compra"><ShoppingCart /><span>{t('navigation:purchase_orders')}</span></NavLink>
               <NavLink to="/proveedores"><Users /><span>{t('navigation:suppliers')}</span></NavLink>
               <NavLink to="/clientes"><Users /><span>{t('navigation:clients')}</span></NavLink>
