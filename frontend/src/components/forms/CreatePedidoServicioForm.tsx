@@ -24,7 +24,7 @@ interface Item {
   cantidad_piezas: string;
   posicion_tejido: string;
   lado_comando: string;
-  acionamiento: string;
+  accionamiento: string;
   observaciones: string;
 }
 
@@ -61,7 +61,7 @@ export default function CreatePedidoServicioForm({
       cantidad_piezas: '1',
       posicion_tejido: 'NORMAL',
       lado_comando: 'IZQUIERDO',
-      acionamiento: 'MANUAL',
+      accionamiento: 'MANUAL',
       observaciones: '',
     },
   ]);
@@ -97,7 +97,7 @@ export default function CreatePedidoServicioForm({
         cantidad_piezas: '1',
         posicion_tejido: 'NORMAL',
         lado_comando: 'IZQUIERDO',
-        acionamiento: 'MANUAL',
+        accionamiento: 'MANUAL',
         observaciones: '',
       },
     ]);
@@ -263,7 +263,7 @@ export default function CreatePedidoServicioForm({
                     id={`ambiente-${item.id}`}
                     value={item.ambiente}
                     onChange={(e) => handleItemChange(item.id, 'ambiente', e.target.value)}
-                    placeholder="ej: Varanda, Sala, Dormitorio"
+                    placeholder="ej: Veranda, Sala, Dormitorio"
                   />
                 </div>
 
@@ -273,7 +273,7 @@ export default function CreatePedidoServicioForm({
                     id={`modelo-${item.id}`}
                     value={item.modelo}
                     onChange={(e) => handleItemChange(item.id, 'modelo', e.target.value)}
-                    placeholder="ej: Rolô, Persiana, Panel"
+                    placeholder="ej: Roló, Persiana, Panel"
                   />
                 </div>
 
@@ -283,7 +283,7 @@ export default function CreatePedidoServicioForm({
                     id={`tejido-${item.id}`}
                     value={item.tejido}
                     onChange={(e) => handleItemChange(item.id, 'tejido', e.target.value)}
-                    placeholder="ej: Screen 3% branco"
+                    placeholder="ej: Screen 3% blanco"
                   />
                 </div>
 
@@ -364,8 +364,8 @@ export default function CreatePedidoServicioForm({
                 <div className="space-y-2">
                   <Label htmlFor={`acionamiento-${item.id}`}>Accionamiento</Label>
                   <Select
-                    value={item.acionamiento}
-                    onValueChange={(value) => handleItemChange(item.id, 'acionamiento', value)}
+                    value={item.accionamiento}
+                    onValueChange={(value) => handleItemChange(item.id, 'accionamiento', value)}
                   >
                     <SelectTrigger id={`acionamiento-${item.id}`}>
                       <SelectValue />
@@ -384,7 +384,7 @@ export default function CreatePedidoServicioForm({
                   id={`observaciones-${item.id}`}
                   value={item.observaciones}
                   onChange={(e) => handleItemChange(item.id, 'observaciones', e.target.value)}
-                  placeholder="ej: Instalación por fuera del vão"
+                  placeholder="ej: Instalación por fuera del vano"
                   rows={2}
                 />
               </div>

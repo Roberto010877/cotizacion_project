@@ -12,7 +12,7 @@ export interface ItemPedidoServicio {
   cantidad_piezas: number;
   posicion_tejido: string;
   lado_comando: string;
-  acionamiento: string;
+  accionamiento: string;
   observaciones?: string;
 }
 
