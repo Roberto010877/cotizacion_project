@@ -12,6 +12,16 @@ class BaseModel(models.Model):
         abstract = True
         ordering = ['-created_at']
 
+
+class SoftDeleteMixin(models.Model):
+    """
+    Mixin para borrado suave.
+    """
+    eliminado = models.BooleanField(default=False, verbose_name="Eliminado")
+
+    class Meta:
+        abstract = True
+
 class Pais(BaseModel):
     """
     Modelo para almacenar países.
@@ -72,3 +82,88 @@ class TipoDocumentoConfig(BaseModel):
         verbose_name_plural = "Configuraciones de Tipos de Documento"
         unique_together = ('pais', 'codigo')
         ordering = ['pais__nombre', 'nombre']
+
+
+class TablaCorrelativos(SoftDeleteMixin, BaseModel):
+    """
+    Modelo para gestionar correlativos automáticos de documentos.
+    Genera códigos secuenciales como: PED-0000001, COT-0000001, etc.
+    """
+    
+    nombre = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name="Nombre del Correlativo",
+        help_text="Ej: Pedidos de Servicio, Cotizaciones, Órdenes de Compra"
+    )
+    
+    prefijo = models.CharField(
+        max_length=10,
+        unique=True,
+        verbose_name="Prefijo/Serie",
+        help_text="Prefijo único para el documento (ej: PED, COT, OC, FV)"
+    )
+    
+    numero = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Número Correlativo Actual",
+        help_text="Número actual del correlativo (se incrementa automáticamente)"
+    )
+    
+    longitud = models.PositiveIntegerField(
+        default=7,
+        verbose_name="Longitud del Número",
+        help_text="Cantidad de dígitos a rellenar con ceros (ej: 7 para 0000001)"
+    )
+    
+    estado = models.CharField(
+        max_length=12,
+        choices=[('Activo', 'Activo'), ('Inactivo', 'Inactivo')],
+        default='Activo',
+        verbose_name="Estado"
+    )
+    
+    descripcion = models.TextField(
+        blank=True,
+        verbose_name="Descripción",
+        help_text="Descripción adicional sobre este correlativo"
+    )
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.prefijo}-{self.formato_numero()})"
+    
+    def formato_numero(self):
+        """
+        Genera el número correlativo con ceros a la izquierda.
+        Ej: 1 -> 0000001 (si longitud es 7)
+        """
+        return str(self.numero).zfill(self.longitud)
+    
+    def generar_codigo_documento(self):
+        """
+        Genera el código completo del documento.
+        Ej: PED-0000001
+        """
+        return f"{self.prefijo}-{self.formato_numero()}"
+    
+    def obtener_siguiente_codigo(self):
+        """
+        Obtiene el siguiente código y actualiza el correlativo.
+        Este método DEBE usarse de forma atómica para evitar duplicados.
+        """
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Bloquear este registro para lectura-escritura
+            obj = TablaCorrelativos.objects.select_for_update().get(id=self.id)
+            # Incrementar el número
+            obj.numero += 1
+            obj.save()
+            # Retornar el código generado
+            return obj.generar_codigo_documento()
+    
+    class Meta:
+        db_table = "common_tabla_correlativos"
+        verbose_name = "Tabla de Correlativos"
+        verbose_name_plural = "Tablas de Correlativos"
+        ordering = ['nombre']
