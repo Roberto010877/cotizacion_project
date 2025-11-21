@@ -9,10 +9,13 @@ urlpatterns = [
     path('', include(router.urls)),
     path('', include('core.urls')),
     path('', include('clientes.urls')),
+    path('', include('pedidos_servicio.urls')),
+    path('instaladores/', include('instaladores.urls')),
     path('gestion/', include([
         path('', include('proveedores.urls')),
         path('productos/', include('productos.urls')),
         path('cotizaciones/', include('cotizaciones.urls')),
+        path('', include('ordenes_compra.urls')),
     ])),
 ]
 
