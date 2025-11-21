@@ -21,10 +21,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-interface CreateClienteFormProps {
+interface EditClienteFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  cliente: any;
   paisOptions: any[];
   tiposClienteOptions: any[];
   origenesClienteOptions: any[];
@@ -42,10 +43,11 @@ interface ClienteFormData {
   telefono_contacto: string;
 }
 
-export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
+export const EditClienteForm: React.FC<EditClienteFormProps> = ({
   open,
   onOpenChange,
   onSuccess,
+  cliente,
   paisOptions,
   tiposClienteOptions,
   origenesClienteOptions,
@@ -59,11 +61,18 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<ClienteFormData>({
     defaultValues: {
-      preferencias_contacto: 'WHATSAPP',
-      tipo: 'NUEVO',
-      origen: 'WEB',
+      nombre: cliente?.nombre || '',
+      email: cliente?.email || '',
+      telefono: cliente?.telefono || '',
+      direccion: cliente?.direccion || '',
+      pais: String(cliente?.pais?.id || ''),
+      tipo: cliente?.tipo || 'NUEVO',
+      origen: cliente?.origen || 'WEB',
+      preferencias_contacto: cliente?.preferencias_contacto || 'WHATSAPP',
+      telefono_contacto: cliente?.telefono_contacto || '',
     },
   });
 
@@ -82,9 +91,9 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
         preferencias_contacto: data.preferencias_contacto,
       };
 
-      await axiosInstance.post('/api/v1/clientes/', payload);
+      await axiosInstance.patch(`/api/v1/clientes/${cliente.id}/`, payload);
 
-      toast.success(t('clientes:cliente_created_success') || 'Cliente creado exitosamente');
+      toast.success(t('clientes:update_success') || 'Cliente actualizado exitosamente');
       reset();
       onOpenChange(false);
       onSuccess?.();
@@ -93,9 +102,9 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
         error.response?.data?.detail ||
         error.response?.data?.error ||
         t('common:error_loading_data') ||
-        'Error al crear cliente';
+        'Error al actualizar cliente';
       toast.error(errorMessage);
-      console.error('Error creating client:', error);
+      console.error('Error updating client:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -105,9 +114,9 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t('clientes:create_client')}</DialogTitle>
+          <DialogTitle>{t('clientes:edit_client')}</DialogTitle>
           <DialogDescription>
-            {t('clientes:fill_client_form') || 'Complete los datos del nuevo cliente'}
+            {t('clientes:edit_client_details') || 'Actualiza los datos del cliente'}
           </DialogDescription>
         </DialogHeader>
 
@@ -221,6 +230,7 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
               <Select
                 onValueChange={(value) => setValue('pais', value)}
                 disabled={isSubmitting}
+                defaultValue={String(cliente?.pais?.id || '')}
               >
                 <SelectTrigger
                   id="pais"
@@ -255,7 +265,7 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                 <Select
                   onValueChange={(value) => setValue('tipo', value)}
                   disabled={isSubmitting}
-                  defaultValue="NUEVO"
+                  defaultValue={cliente?.tipo || 'NUEVO'}
                 >
                   <SelectTrigger
                     id="tipo"
@@ -282,7 +292,7 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
                 <Select
                   onValueChange={(value) => setValue('origen', value)}
                   disabled={isSubmitting}
-                  defaultValue="WEB"
+                  defaultValue={cliente?.origen || 'WEB'}
                 >
                   <SelectTrigger
                     id="origen"
@@ -312,7 +322,7 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
               <Select
                 onValueChange={(value) => setValue('preferencias_contacto', value)}
                 disabled={isSubmitting}
-                defaultValue="WHATSAPP"
+                defaultValue={cliente?.preferencias_contacto || 'WHATSAPP'}
               >
                 <SelectTrigger
                   id="preferencias_contacto"
@@ -349,10 +359,8 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
               className="min-w-[120px]"
             >
               {isSubmitting
-                ? t('clientes:creating')
-                : t(
-                    'clientes:create_client'
-                  )}
+                ? t('clientes:updating')
+                : t('clientes:edit_client')}
             </Button>
           </div>
         </form>
@@ -361,4 +369,4 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
   );
 };
 
-export default CreateClienteForm;
+export default EditClienteForm;

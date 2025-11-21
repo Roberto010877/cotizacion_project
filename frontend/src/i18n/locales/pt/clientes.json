@@ -59,5 +59,19 @@
   "view_on_maps": "Ver no Google Maps",
   "use_my_location": "Usar Minha Localização",
   "validated_coords": "Coordenadas Validadas",
-  "address_required": "O endereço é obrigatório"
+  "address_required": "Endereço é obrigatório",
+  "edit_client": "Editar Cliente",
+  "edit_client_details": "Editar Detalhes do Cliente",
+  "updating": "Atualizando...",
+  "update_success": "Cliente atualizado com sucesso",
+  "update_error": "Erro ao atualizar cliente",
+  "delete_client": "Deletar Cliente",
+  "delete_confirmation": "Tem certeza de que deseja deletar este cliente?",
+  "delete_confirmation_message": "Esta ação não pode ser desfeita. Todos os dados do cliente serão deletados.",
+  "delete_success": "Cliente deletado com sucesso",
+  "delete_error": "Erro ao deletar cliente",
+  "confirm_delete": "Deletar",
+  "cancel_delete": "Cancelar",
+  "view_client": "Ver Detalhes",
+  "client_information": "Informações do Cliente"
 }

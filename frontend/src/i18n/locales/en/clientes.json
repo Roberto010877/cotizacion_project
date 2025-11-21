@@ -59,5 +59,19 @@
   "view_on_maps": "View on Google Maps",
   "use_my_location": "Use My Location",
   "validated_coords": "Validated Coordinates",
-  "address_required": "Address is required"
+  "address_required": "Address is required",
+  "edit_client": "Edit Client",
+  "edit_client_details": "Edit Client Details",
+  "updating": "Updating...",
+  "update_success": "Client updated successfully",
+  "update_error": "Error updating client",
+  "delete_client": "Delete Client",
+  "delete_confirmation": "Are you sure you want to delete this client?",
+  "delete_confirmation_message": "This action cannot be undone. All client data will be deleted.",
+  "delete_success": "Client deleted successfully",
+  "delete_error": "Error deleting client",
+  "confirm_delete": "Delete",
+  "cancel_delete": "Cancel",
+  "view_client": "View Details",
+  "client_information": "Client Information"
 }
