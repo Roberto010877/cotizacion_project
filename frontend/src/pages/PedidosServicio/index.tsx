@@ -32,6 +32,7 @@ const PedidosServicioPage = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [clientes, setClientes] = useState<Array<{ id: number; nombre: string }>>([]);
   const [isLoadingForm, setIsLoadingForm] = useState(false);
+  const [pedidosPorEstado, setPedidosPorEstado] = useState<Record<string, number>>({});
 
   // Cargar clientes para el formulario
   useEffect(() => {
@@ -64,6 +65,27 @@ const PedidosServicioPage = () => {
     page: pagination.currentPage,
     pageSize: pagination.pageSize,
   });
+
+  // Cargar estadísticas de pedidos por estado
+  useEffect(() => {
+    const fetchEstadisticas = async () => {
+      try {
+        const estados = ['ENVIADO', 'ACEPTADO', 'EN_FABRICACION', 'LISTO_INSTALAR', 'INSTALADO', 'COMPLETADO'];
+        const conteos: Record<string, number> = {};
+        
+        for (const estado of estados) {
+          const response = await axiosInstance.get(`/api/v1/pedidos-servicio/?estado=${estado}&page_size=1`);
+          conteos[estado] = response.data.count || 0;
+        }
+        
+        setPedidosPorEstado(conteos);
+      } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+      }
+    };
+
+    fetchEstadisticas();
+  }, []);
 
   // Actualizar total de registros cuando llegan los datos
   useEffect(() => {
@@ -162,20 +184,49 @@ const PedidosServicioPage = () => {
 
   const pedidos = data?.results || [];
 
+  // Colores y emojis por estado
+  const estadoConfig: Record<string, { bg: string; text: string; emoji: string }> = {
+    ENVIADO: { bg: 'bg-blue-50', text: 'text-blue-700', emoji: '📨' },
+    ACEPTADO: { bg: 'bg-indigo-50', text: 'text-indigo-700', emoji: '✅' },
+    EN_FABRICACION: { bg: 'bg-orange-50', text: 'text-orange-700', emoji: '⚙️' },
+    LISTO_INSTALAR: { bg: 'bg-yellow-50', text: 'text-yellow-700', emoji: '📦' },
+    INSTALADO: { bg: 'bg-green-50', text: 'text-green-700', emoji: '🔧' },
+    COMPLETADO: { bg: 'bg-emerald-50', text: 'text-emerald-700', emoji: '✨' },
+  };
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>{t('pedidos_servicio:title')}</CardTitle>
-          <CardDescription>
-            {t('pedidos_servicio:description')}
-          </CardDescription>
-        </div>
-        <Button onClick={() => setIsCreating(true)}>
-          {t('pedidos_servicio:create_new')}
-        </Button>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-6">
+      {/* Panel de Estadísticas */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {Object.entries(estadoConfig).map(([estado, config]) => (
+          <Card key={estado} className={`${config.bg} border-0`}>
+            <CardContent className="p-3">
+              <div className="text-2xl mb-1">{config.emoji}</div>
+              <div className={`text-2xl font-bold ${config.text}`}>
+                {pedidosPorEstado[estado] || 0}
+              </div>
+              <div className="text-xs text-gray-600 truncate">
+                {estado.replace(/_/g, ' ')}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Tabla de Pedidos */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>{t('pedidos_servicio:title')}</CardTitle>
+            <CardDescription>
+              {t('pedidos_servicio:description')}
+            </CardDescription>
+          </div>
+          <Button onClick={() => setIsCreating(true)}>
+            {t('pedidos_servicio:create_new')}
+          </Button>
+        </CardHeader>
+        <CardContent>
         {isMobile ? (
           // Mobile: Infinite Scroll
           <InfiniteScroll
@@ -268,6 +319,7 @@ const PedidosServicioPage = () => {
         </DialogContent>
       </Dialog>
     </Card>
+    </div>
   );
 };
 
