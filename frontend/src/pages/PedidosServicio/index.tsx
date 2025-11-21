@@ -37,7 +37,7 @@ const PedidosServicioPage = () => {
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        const response = await axiosInstance.get('/api/clientes/?page_size=1000');
+        const response = await axiosInstance.get('/api/v1/clientes/?page_size=1000');
         const clientesList = response.data.results.map((cliente: any) => ({
           id: cliente.id,
           nombre: cliente.nombre,
@@ -225,21 +225,21 @@ const PedidosServicioPage = () => {
               setIsLoadingForm(true);
               try {
                 // Crear el pedido servicio
-                const pedidoResponse = await axiosInstance.post('/api/pedidos-servicio/', {
-                  cliente: data.cliente,
+                const pedidoResponse = await axiosInstance.post('/api/v1/pedidos-servicio/', {
+                  cliente_id: data.cliente,
                   solicitante: data.solicitante,
                   supervisor: data.supervisor,
                   fecha_inicio: data.fecha_inicio,
                   fecha_fin: data.fecha_fin,
                   observaciones: data.observaciones,
-                  estado: 'CREADO',
+                  estado: 'ENVIADO',
                 });
 
                 const pedidoId = pedidoResponse.data.id;
 
                 // Crear los items del pedido
                 for (const item of data.items) {
-                  await axiosInstance.post(`/api/pedidos-servicio/${pedidoId}/items/`, {
+                  await axiosInstance.post(`/api/v1/pedidos-servicio/${pedidoId}/items/`, {
                     ambiente: item.ambiente,
                     modelo: item.modelo,
                     tejido: item.tejido,
