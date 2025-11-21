@@ -16,5 +16,13 @@
   "error_loading_data": "Error al cargar los datos",
   "edit": "Editar",
   "delete": "Eliminar",
-  "cancel": "Cancelar"
+  "cancel": "Cancelar",
+  "start_date": "Fecha de Inicio",
+  "end_date": "Fecha de Fin",
+  "number": "Número",
+  "actions": "Acciones",
+  "view": "Ver",
+  "client": "Cliente",
+  "save": "Guardar",
+  "create": "Crear"
 }

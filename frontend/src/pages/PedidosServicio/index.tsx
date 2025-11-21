@@ -124,7 +124,7 @@ const PedidosServicioPage = () => {
       accessorKey: "fecha_inicio",
       header: t('common:start_date'),
       cell: ({ row }) => {
-        const date = row.getValue("fecha_inicio");
+        const date = row.original.fecha_inicio;
         return date ? new Date(date as string).toLocaleDateString() : '-';
       },
     },

@@ -186,7 +186,10 @@ export default function CreatePedidoServicioForm({
                 placeholder="Nombre del supervisor"
               />
             </div>
+          </div>
 
+          {/* Fila: Fecha de Inicio y Fecha de Fin */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fecha_inicio">Fecha de Inicio</Label>
               <Input
@@ -285,6 +288,20 @@ export default function CreatePedidoServicioForm({
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor={`cantidad-${item.id}`}>Cantidad de Piezas</Label>
+                  <Input
+                    id={`cantidad-${item.id}`}
+                    type="number"
+                    value={item.cantidad_piezas}
+                    onChange={(e) => handleItemChange(item.id, 'cantidad_piezas', e.target.value)}
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+
+              {/* Fila: Largura y Altura */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor={`largura-${item.id}`}>Largura (m) *</Label>
                   <Input
                     id={`largura-${item.id}`}
@@ -307,18 +324,10 @@ export default function CreatePedidoServicioForm({
                     placeholder="ej: 1.80"
                   />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`cantidad-${item.id}`}>Cantidad de Piezas</Label>
-                  <Input
-                    id={`cantidad-${item.id}`}
-                    type="number"
-                    value={item.cantidad_piezas}
-                    onChange={(e) => handleItemChange(item.id, 'cantidad_piezas', e.target.value)}
-                    placeholder="1"
-                  />
-                </div>
-
+              {/* Fila: Posición del Tejido, Lado del Comando y Accionamiento */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor={`posicion-${item.id}`}>Posición del Tejido</Label>
                   <Select
