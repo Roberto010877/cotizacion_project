@@ -32,22 +32,111 @@ import axiosInstance from "./lib/axios.new";
 
 // Placeholder components for pages
 const Dashboard = () => {
-  const { t } = useAppTranslation(['navigation']); 
-  return <Page title={t('navigation:dashboard')} description={t('navigation:dashboard_description')} />;
-};
-
-const Page = ({ title, description }: { title: string, description: string }) => {
   const { t } = useAppTranslation(['navigation']);
+  const [pedidosPendientes, setPedidosPendientes] = useState<any[]>([]);
+  const [pedidosEnFabricacion, setPedidosEnFabricacion] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPedidos = async () => {
+      try {
+        // Obtener pedidos pendientes de instalar
+        const respPendientes = await axiosInstance.get('/api/v1/pedidos-servicio/?estado=LISTO_INSTALAR&page_size=5');
+        setPedidosPendientes(respPendientes.data.results || []);
+
+        // Obtener pedidos en fabricación
+        const respFabricacion = await axiosInstance.get('/api/v1/pedidos-servicio/?estado=EN_FABRICACION&page_size=5');
+        setPedidosEnFabricacion(respFabricacion.data.results || []);
+      } catch (error) {
+        console.error('Error cargando pedidos:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPedidos();
+  }, []);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p>{t('navigation:page_content')}</p> 
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('navigation:dashboard')}</CardTitle>
+          <CardDescription>{t('navigation:dashboard_description')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Panel Fabricación */}
+            <Card className="border-l-4 border-l-orange-500">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <span className="text-2xl">⚙️</span>
+                  Fabricación
+                </CardTitle>
+                <CardDescription>Pedidos en proceso de fabricación</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="animate-pulse space-y-2">
+                    {[1, 2].map(i => <div key={i} className="h-12 bg-gray-200 rounded"></div>)}
+                  </div>
+                ) : pedidosEnFabricacion.length > 0 ? (
+                  <div className="space-y-3">
+                    {pedidosEnFabricacion.map((pedido: any) => (
+                      <div key={pedido.id} className="border rounded p-3 bg-orange-50">
+                        <div className="font-semibold text-sm">{pedido.numero_pedido}</div>
+                        <div className="text-xs text-gray-600">{pedido.cliente_nombre}</div>
+                        <div className="text-xs mt-1 text-orange-600 font-medium">
+                          {pedido.total_items || 0} items
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    <p className="text-sm">No hay pedidos en fabricación</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Panel Instalación */}
+            <Card className="border-l-4 border-l-green-500">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <span className="text-2xl">🔧</span>
+                  Instalación
+                </CardTitle>
+                <CardDescription>Pedidos listos para instalar</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="animate-pulse space-y-2">
+                    {[1, 2].map(i => <div key={i} className="h-12 bg-gray-200 rounded"></div>)}
+                  </div>
+                ) : pedidosPendientes.length > 0 ? (
+                  <div className="space-y-3">
+                    {pedidosPendientes.map((pedido: any) => (
+                      <div key={pedido.id} className="border rounded p-3 bg-green-50">
+                        <div className="font-semibold text-sm">{pedido.numero_pedido}</div>
+                        <div className="text-xs text-gray-600">{pedido.cliente_nombre}</div>
+                        <div className="text-xs mt-1 text-green-600 font-medium">
+                          {pedido.total_items || 0} items
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    <p className="text-sm">No hay pedidos listos para instalar</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
