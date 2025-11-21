@@ -4,14 +4,13 @@ import type { PaginatedResponse } from './useClientes';
 
 export interface OrdenCompra {
   id: number;
-  numero: string;
+  numero_orden: string;
   proveedor: number;
   proveedor_nombre?: string;
-  fecha_pedido: string;
-  fecha_entrega_estimada: string;
+  fecha_entrega_prevista: string;
   total: number;
   estado: string;
-  descripcion?: string;
+  observaciones?: string;
 }
 
 interface UsePaginatedOrdenesOptions {

@@ -18,10 +18,9 @@ import usePaginatedOrdenes from "@/hooks/usePaginatedOrdenes";
 
 type OrdenCompra = {
   id: number;
-  numero: string;
+  numero_orden: string;
   proveedor: number | string;
-  fecha_pedido: string;
-  fecha_entrega_estimada: string;
+  fecha_entrega_prevista: string;
   total: number;
   estado: string;
 };
@@ -62,7 +61,7 @@ const OrdenesCompraPage = () => {
     },
     {
       id: "col-numero",
-      accessorKey: "numero",
+      accessorKey: "numero_orden",
       header: t('common:number'),
     },
     {
@@ -71,13 +70,8 @@ const OrdenesCompraPage = () => {
       header: t('navigation:supplier'),
     },
     {
-      id: "col-fecha_pedido",
-      accessorKey: "fecha_pedido",
-      header: t('common:order_date'),
-    },
-    {
       id: "col-fecha_entrega",
-      accessorKey: "fecha_entrega_estimada",
+      accessorKey: "fecha_entrega_prevista",
       header: t('common:estimated_delivery'),
     },
     {

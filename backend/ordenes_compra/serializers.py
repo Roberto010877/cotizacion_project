@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import OrdenCompra, DetalleOrdenCompra
 from productos.models import Producto
+from proveedores.models import Proveedor
 from proveedores.serializers import ProveedorSerializer
 
 class ProductoDetalleSerializer(serializers.ModelSerializer):
@@ -29,10 +30,10 @@ class OrdenCompraSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrdenCompra
         fields = [
-            'id', 'proveedor', 'proveedor_id', 'fecha_entrega_prevista', 'estado', 
+            'id', 'numero_orden', 'proveedor', 'proveedor_id', 'fecha_entrega_prevista', 'estado', 
             'total', 'observaciones', 'creado_por', 'created_at', 'updated_at', 'detalles'
         ]
-        read_only_fields = ['total', 'creado_por', 'created_at', 'updated_at']
+        read_only_fields = ['numero_orden', 'total', 'creado_por', 'created_at', 'updated_at']
 
     def create(self, validated_data):
         detalles_data = validated_data.pop('detalles')

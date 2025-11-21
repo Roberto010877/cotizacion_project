@@ -14,6 +14,15 @@ class OrdenCompra(BaseModel):
         RECIBIDA = 'RECIBIDA', 'Recibida'
         CANCELADA = 'CANCELADA', 'Cancelada'
 
+    numero_orden = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Número de Orden",
+        help_text="Identificador único de la orden (ej: OC-0000001)",
+        editable=False,
+        null=True,
+        blank=True
+    )
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='ordenes_compra')
     fecha_entrega_prevista = models.DateField(blank=True, null=True, verbose_name="Fecha de Entrega Prevista")
     estado = models.CharField(
@@ -26,7 +35,29 @@ class OrdenCompra(BaseModel):
     )
 
     def __str__(self):
-        return f"Orden de Compra {self.id} a {self.proveedor.nombre}"
+        return f"Orden de Compra {self.numero_orden} a {self.proveedor.nombre}"
+    
+    def save(self, *args, **kwargs):
+        # Generar número de orden si no existe (solo en creación)
+        if not self.numero_orden:
+            from common.models import TablaCorrelativos
+            
+            # Obtener o crear la tabla de correlativos para órdenes
+            correlativo, created = TablaCorrelativos.objects.get_or_create(
+                prefijo='OC',
+                defaults={
+                    'nombre': 'Órdenes de Compra',
+                    'numero': 0,
+                    'longitud': 7,
+                    'estado': 'Activo',
+                    'descripcion': 'Correlativo automático para órdenes de compra'
+                }
+            )
+            
+            # Generar el siguiente código de manera atómica
+            self.numero_orden = correlativo.obtener_siguiente_codigo()
+        
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-created_at']

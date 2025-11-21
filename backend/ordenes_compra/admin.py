@@ -8,12 +8,12 @@ class DetalleOrdenCompraInline(admin.TabularInline):
 
 @admin.register(OrdenCompra)
 class OrdenCompraAdmin(admin.ModelAdmin):
-    list_display = ('id', 'proveedor', 'estado', 'total', 'fecha_entrega_prevista', 'creado_por')
+    list_display = ('numero_orden', 'proveedor', 'estado', 'total', 'fecha_entrega_prevista', 'creado_por')
     list_filter = ('estado', 'fecha_entrega_prevista', 'created_at')
-    search_fields = ('proveedor__nombre', 'id')
+    search_fields = ('numero_orden', 'proveedor__nombre')
     inlines = [DetalleOrdenCompraInline]
     autocomplete_fields = ['proveedor']
-    readonly_fields = ('total',)
+    readonly_fields = ('numero_orden', 'total')
 
 @admin.register(DetalleOrdenCompra)
 class DetalleOrdenCompraAdmin(admin.ModelAdmin):
