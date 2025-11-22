@@ -30,7 +30,7 @@ const PedidosServicioPage = () => {
   const { t } = useAppTranslation(['navigation', 'common']);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [isCreating, setIsCreating] = useState(false);
-  const [clientes, setClientes] = useState<Array<{ id: number; nombre: string }>>([]);
+  const [clientes, setClientes] = useState<Array<{ id: number; nombre: string; direccion?: string; telefono?: string; email?: string }>>([]);
   const [isLoadingForm, setIsLoadingForm] = useState(false);
   const [pedidosPorEstado, setPedidosPorEstado] = useState<Record<string, number>>({});
 
@@ -42,6 +42,9 @@ const PedidosServicioPage = () => {
         const clientesList = response.data.results.map((cliente: any) => ({
           id: cliente.id,
           nombre: cliente.nombre,
+          direccion: cliente.direccion || '',
+          telefono: cliente.telefono || '',
+          email: cliente.email || '',
         }));
         setClientes(clientesList);
       } catch (error) {
