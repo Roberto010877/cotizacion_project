@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAppTranslation } from '@/i18n/hooks';
 
 interface PaginationProps {
   currentPage: number;
@@ -35,6 +36,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   pageSizeOptions = [10, 25, 50, 100],
   isLoading = false,
 }) => {
+  const { t } = useAppTranslation(['common']);
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalCount);
 
@@ -64,22 +66,22 @@ export const Pagination: React.FC<PaginationProps> = ({
       <div className="text-sm text-gray-600">
         {totalCount > 0 ? (
           <>
-            Mostrando{' '}
+            {t('common:showing')}{' '}
             <span className="font-semibold">{startItem.toLocaleString()}</span>
             -
             <span className="font-semibold">{endItem.toLocaleString()}</span>
-            {' '}de{' '}
+            {' '}{t('common:of')}{' '}
             <span className="font-semibold">{totalCount.toLocaleString()}</span>
-            {' '}registros
+            {' '}{t('common:records')}
           </>
         ) : (
-          'Sin registros'
+          t('common:no_records')
         )}
       </div>
 
       {/* Page Size Selector */}
       <div className="flex items-center gap-2">
-        <label className="text-sm text-gray-600">Filas por página:</label>
+        <label className="text-sm text-gray-600">{t('common:rows_per_page')}</label>
         <Select
           value={String(pageSize)}
           onValueChange={(value) => {
@@ -109,7 +111,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="icon"
           onClick={handleFirstPage}
           disabled={currentPage === 1 || isLoading || totalPages === 0}
-          title="Primera página"
+          title={t('common:first_page')}
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -120,14 +122,14 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="icon"
           onClick={handlePreviousPage}
           disabled={currentPage === 1 || isLoading || totalPages === 0}
-          title="Página anterior"
+          title={t('common:previous_page')}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
         {/* Page Info */}
         <div className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded border">
-          Página {totalCount > 0 ? currentPage : 0} de {totalPages}
+          {t('common:page')} {totalCount > 0 ? currentPage : 0} {t('common:of')} {totalPages}
         </div>
 
         {/* Next Page */}
@@ -136,7 +138,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="icon"
           onClick={handleNextPage}
           disabled={currentPage === totalPages || isLoading || totalPages === 0}
-          title="Página siguiente"
+          title={t('common:next_page')}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -147,7 +149,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="icon"
           onClick={handleLastPage}
           disabled={currentPage === totalPages || isLoading || totalPages === 0}
-          title="Última página"
+          title={t('common:last_page')}
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>

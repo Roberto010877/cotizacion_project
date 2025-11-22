@@ -28,6 +28,7 @@ export interface PedidoServicio {
   fecha_inicio: string;
   fecha_fin?: string;
   estado: 'ENVIADO' | 'ACEPTADO' | 'EN_FABRICACION' | 'LISTO_INSTALAR' | 'INSTALADO' | 'COMPLETADO' | 'RECHAZADO' | 'CANCELADO';
+  estado_display?: string;
   observaciones?: string;
   items?: ItemPedidoServicio[];
   total_items?: number;

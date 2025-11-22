@@ -24,5 +24,16 @@
   "view": "Ver",
   "client": "Cliente",
   "save": "Guardar",
-  "create": "Crear"
+  "create": "Crear",
+  "id": "ID",
+  "showing": "Mostrando",
+  "records": "registros",
+  "of": "de",
+  "no_records": "Sin registros",
+  "rows_per_page": "Filas por página:",
+  "first_page": "Primera página",
+  "previous_page": "Página anterior",
+  "page": "Página",
+  "next_page": "Página siguiente",
+  "last_page": "Última página"
 }

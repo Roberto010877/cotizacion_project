@@ -27,7 +27,7 @@ import axiosInstance from "@/lib/axios.new";
 import toast from "react-hot-toast";
 
 const PedidosServicioPage = () => {
-  const { t } = useAppTranslation(['navigation', 'common']);
+  const { t } = useAppTranslation(['navigation', 'common', 'pedidos_servicio']);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [isCreating, setIsCreating] = useState(false);
   const [clientes, setClientes] = useState<Array<{ id: number; nombre: string; direccion?: string; telefono?: string; email?: string }>>([]);
@@ -100,12 +100,25 @@ const PedidosServicioPage = () => {
   // Skeleton rows para loading state
   const skeletonRows = Array(pagination.pageSize).fill(null);
 
+  // Función para traducir estados
+  const translateEstado = (estadoDisplay: string): string => {
+    const estadoMap: Record<string, string> = {
+      'Enviado': t('pedidos_servicio:status_enviado'),
+      'Aceptado': t('pedidos_servicio:status_aceptado'),
+      'En Fabricación': t('pedidos_servicio:status_en_fabricacion'),
+      'Pronto para Instalar': t('pedidos_servicio:status_listo_instalar'),
+      'Instalado': t('pedidos_servicio:status_instalado'),
+      'Concluído': t('pedidos_servicio:status_completado'),
+    };
+    return estadoMap[estadoDisplay] || estadoDisplay;
+  };
+
   // Define the columns for the table - Desktop view
   const columns: ColumnDef<PedidoServicio>[] = [
     {
       id: "col-id",
       accessorKey: "id",
-      header: "ID",
+      header: t('common:id'),
     },
     {
       id: "col-numero",
@@ -135,6 +148,9 @@ const PedidosServicioPage = () => {
       id: "col-estado",
       accessorKey: "estado_display",
       header: t('navigation:status'),
+      cell: ({ row }) => {
+        return row.original.estado_display ? translateEstado(row.original.estado_display) : '-';
+      },
     },
     {
       id: "col-items",
@@ -187,6 +203,19 @@ const PedidosServicioPage = () => {
 
   const pedidos = data?.results || [];
 
+  // Función para traducir nombre de estado
+  const getEstadoLabel = (estado: string): string => {
+    const estadoMap: Record<string, string> = {
+      'ENVIADO': t('pedidos_servicio:status_enviado'),
+      'ACEPTADO': t('pedidos_servicio:status_aceptado'),
+      'EN_FABRICACION': t('pedidos_servicio:status_en_fabricacion'),
+      'LISTO_INSTALAR': t('pedidos_servicio:status_listo_instalar'),
+      'INSTALADO': t('pedidos_servicio:status_instalado'),
+      'COMPLETADO': t('pedidos_servicio:status_completado'),
+    };
+    return estadoMap[estado] || estado.replace(/_/g, ' ');
+  };
+
   // Colores y emojis por estado
   const estadoConfig: Record<string, { bg: string; text: string; emoji: string }> = {
     ENVIADO: { bg: 'bg-blue-50', text: 'text-blue-700', emoji: '📨' },
@@ -209,7 +238,7 @@ const PedidosServicioPage = () => {
                 {pedidosPorEstado[estado] || 0}
               </div>
               <div className="text-xs text-gray-600 truncate">
-                {estado.replace(/_/g, ' ')}
+                {getEstadoLabel(estado)}
               </div>
             </CardContent>
           </Card>

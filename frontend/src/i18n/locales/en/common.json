@@ -46,5 +46,16 @@
   "password_min_length": "Password must be at least 8 characters",
   "confirm_password_required": "Please confirm the password",
   "passwords_dont_match": "Passwords do not match",
-  "role_required": "Please select a role"
+  "role_required": "Please select a role",
+  "id": "ID",
+  "showing": "Showing",
+  "records": "records",
+  "of": "of",
+  "no_records": "No records",
+  "rows_per_page": "Rows per page:",
+  "first_page": "First page",
+  "previous_page": "Previous page",
+  "page": "Page",
+  "next_page": "Next page",
+  "last_page": "Last page"
 }

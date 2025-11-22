@@ -55,5 +55,11 @@
   "client_contact": "Contacto",
   "no_address": "Sin dirección",
   "no_phone": "Sin teléfono",
-  "no_contact": "Sin contacto"
+  "no_contact": "Sin contacto",
+  "status_enviado": "Enviado",
+  "status_aceptado": "Aceptado",
+  "status_en_fabricacion": "En Fabricación",
+  "status_listo_instalar": "Listo para Instalar",
+  "status_instalado": "Instalado",
+  "status_completado": "Completado"
 }
