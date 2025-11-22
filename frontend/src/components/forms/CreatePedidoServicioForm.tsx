@@ -29,8 +29,16 @@ interface Item {
   observaciones: string;
 }
 
+interface ClienteData {
+  id: number;
+  nombre: string;
+  direccion?: string;
+  telefono?: string;
+  email?: string;
+}
+
 interface CreatePedidoServicioFormProps {
-  clientes: Array<{ id: number; nombre: string }>;
+  clientes: ClienteData[];
   isLoading?: boolean;
   onSubmit?: (data: any) => void;
   onCancel?: () => void;
@@ -51,6 +59,7 @@ export default function CreatePedidoServicioForm({
     fecha_fin: '',
     observaciones: '',
   });
+  const [selectedClienteData, setSelectedClienteData] = useState<ClienteData | null>(null);
 
   const [items, setItems] = useState<Item[]>([
     {
@@ -75,6 +84,12 @@ export default function CreatePedidoServicioForm({
 
   const handleFormSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Si es el cliente, guardar sus datos completos
+    if (name === 'cliente') {
+      const clientData = clientes.find(c => c.id.toString() === value);
+      setSelectedClienteData(clientData || null);
+    }
   };
 
   const handleItemChange = (id: string, field: string, value: string) => {
@@ -150,7 +165,8 @@ export default function CreatePedidoServicioForm({
           <CardDescription>{t('pedidos_servicio:basic_data')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Cliente y su información */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="cliente">{t('common:client')} *</Label>
               <Select value={formData.cliente} onValueChange={(value) => handleFormSelectChange('cliente', value)}>
@@ -167,6 +183,33 @@ export default function CreatePedidoServicioForm({
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label>{t('pedidos_servicio:client_phone')}</Label>
+              <div className="flex items-center justify-start h-10 px-3 rounded-md border border-input bg-background text-sm">
+                {selectedClienteData?.telefono ? selectedClienteData.telefono : t('pedidos_servicio:no_phone')}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t('pedidos_servicio:client_contact')}</Label>
+              <div className="flex items-center justify-start h-10 px-3 rounded-md border border-input bg-background text-sm">
+                {selectedClienteData?.email ? selectedClienteData.email : t('pedidos_servicio:no_contact')}
+              </div>
+            </div>
+          </div>
+
+          {/* Dirección completa */}
+          {selectedClienteData?.direccion && (
+            <div className="space-y-2">
+              <Label>{t('pedidos_servicio:client_address')}</Label>
+              <div className="flex items-center justify-start min-h-10 px-3 rounded-md border border-input bg-background text-sm">
+                {selectedClienteData.direccion}
+              </div>
+            </div>
+          )}
+
+          {/* Solicitante y Supervisor en la misma fila */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="solicitante">{t('pedidos_servicio:requester')}</Label>
               <Input

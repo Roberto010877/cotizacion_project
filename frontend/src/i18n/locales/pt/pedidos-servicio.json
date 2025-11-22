@@ -49,5 +49,11 @@
   "select_client": "Selecione um cliente",
   "select_client_error": "Por favor selecione um cliente",
   "fill_required_fields_error": "Por favor preencha todos os campos obrigatórios nos itens",
-  "min_one_item_error": "Deve haver pelo menos um item"
+  "min_one_item_error": "Deve haver pelo menos um item",
+  "client_address": "Endereço",
+  "client_phone": "Telefone",
+  "client_contact": "Contato",
+  "no_address": "Sem endereço",
+  "no_phone": "Sem telefone",
+  "no_contact": "Sem contato"
 }
