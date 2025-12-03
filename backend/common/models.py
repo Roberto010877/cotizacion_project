@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class BaseModel(models.Model):
     """
@@ -8,6 +9,25 @@ class BaseModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
 
+
+# Auditoría de usuario
+    usuario_creacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='%(class)s_creados',
+        verbose_name="Creado por"
+    )
+    
+    usuario_modificacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='%(class)s_modificados',
+        verbose_name="Modificado por"
+    )
     class Meta:
         abstract = True
         ordering = ['-created_at']

@@ -30,7 +30,7 @@ class ClienteSerializer(serializers.ModelSerializer):
         model = Cliente
         fields = [
             'id', 'nombre', 'pais', 'pais_nombre', 'tipo_documento', 'tipo_documento_nombre',
-            'numero_documento', 'direccion', 'telefono', 'email', 'tipo', 'origen',
+            'numero_documento', 'direccion', 'telefono', 'num_contacto', 'email', 'tipo', 'origen',
             'numero_de_compras', 'total_gastado', 'es_empresa', 'es_cliente_activo',
             'fecha_ultima_compra', 'created_at'
         ]
@@ -39,7 +39,7 @@ class ClienteCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = [
-            'nombre', 'pais', 'direccion', 'telefono', 'email', 'origen',
+            'nombre', 'pais', 'direccion', 'telefono', 'num_contacto', 'email', 'origen',
             'preferencias_contacto', 'notas'
         ]
     

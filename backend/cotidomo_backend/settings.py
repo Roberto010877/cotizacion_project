@@ -1,5 +1,6 @@
 
 from pathlib import Path
+from datetime import timedelta
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -10,7 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-)s4fsgu^(x+r0sk*%bi7j+3@(y&61!xv%@3$1(9#5$6!!)a!bl')
+SECRET_KEY = config(
+    'SECRET_KEY', default='django-insecure-)s4fsgu^(x+r0sk*%bi7j+3@(y&61!xv%@3$1(9#5$6!!)a!bl')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
@@ -39,11 +41,11 @@ INSTALLED_APPS = [
     'api.apps.ApiConfig',
     'clientes.apps.ClientesConfig',
     'proveedores.apps.ProveedoresConfig',
-    'productos.apps.ProductosConfig',
+    'productos_servicios.apps.ProductosServiciosConfig',
     'cotizaciones.apps.CotizacionesConfig',
     'ordenes_compra.apps.OrdenesCompraConfig',
     'pedidos_servicio.apps.PedidosServicioConfig',
-    'instaladores.apps.InstaladoresConfig',
+    'manufactura.apps.ManufacturaConfig',
 ]
 
 MIDDLEWARE = [
@@ -55,6 +57,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'cotidomo_backend.middleware.sqlite_database_lock_handler',  # Manejar bloqueos de BD
 ]
 
 ROOT_URLCONF = 'cotidomo_backend.urls'
@@ -84,6 +87,11 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'ATOMIC_REQUESTS': False,  # Desactivar transacciones automáticas para evitar bloqueos
+        'OPTIONS': {
+            'timeout': 20,  # Timeout de 20 segundos para acceso a BD
+            'isolation_level': None,  # Autocommit mode
+        }
     }
 }
 
@@ -156,11 +164,35 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 25,
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
     ]
+}
+
+# Simple JWT Configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN': False,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JTI_CLAIM': 'jti',
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'JTI_IN_BLACKLIST_CLAIM': 'blacklist',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
 # Custom User Model
@@ -226,3 +258,15 @@ SECURE_CONTENT_SECURITY_POLICY = {
     'default-src': ("'self'",),
     'script-src': ("'self'", "'unsafe-inline'"),
 }
+
+# Gmail Email Configuration (SMTP)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default=None)  # Tu email de Gmail
+# Contraseña de aplicación
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default=None)
+DEFAULT_FROM_EMAIL = config(
+    'DEFAULT_FROM_EMAIL', default='noreply@cotidomo.com')
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')

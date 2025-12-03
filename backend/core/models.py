@@ -6,10 +6,10 @@ from django.utils.translation import gettext_lazy as _
 class User(AbstractUser):
     class Roles(models.TextChoices):
         ADMIN = "ADMIN", _("Administrador")
-        COLLABORATOR = "COLLABORATOR", _("Colaborador")
+        COMERCIAL = "COMERCIAL", _("Comercial")
 
     role = models.CharField(
-        _("role"), max_length=20, choices=Roles.choices, default=Roles.COLLABORATOR
+        _("role"), max_length=20, choices=Roles.choices, default=Roles.COMERCIAL
     )
 
     language = models.CharField(

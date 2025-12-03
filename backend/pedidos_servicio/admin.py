@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import PedidoServicio, ItemPedidoServicio, AsignacionTarea
+from .models import PedidoServicio, ItemPedidoServicio
 
 
 class ItemPedidoServicioInline(admin.TabularInline):
@@ -30,7 +30,8 @@ class PedidoServicioAdmin(admin.ModelAdmin):
         'numero_pedido',
         'cliente',
         'solicitante',
-        'colaborador',
+        'manufacturador',
+        'instalador',
         'fecha_inicio',
         'estado',
         'created_at',
@@ -40,14 +41,16 @@ class PedidoServicioAdmin(admin.ModelAdmin):
         'fecha_inicio',
         'fecha_fin',
         'created_at',
-        'colaborador',
+        'manufacturador',
+        'instalador',
     ]
     search_fields = [
         'numero_pedido',
         'cliente__nombre',
         'solicitante',
         'supervisor',
-        'colaborador__email',
+        'manufacturador__email',
+        'instalador__email',
     ]
     readonly_fields = [
         'numero_pedido',
@@ -57,20 +60,17 @@ class PedidoServicioAdmin(admin.ModelAdmin):
     inlines = [ItemPedidoServicioInline]
     
     fieldsets = (
-        ('Información del Pedido', {
-            'fields': ('numero_pedido', 'estado', 'cliente')
+        ('Información General', {
+            'fields': ('numero_pedido', 'estado', 'cliente', 'solicitante', 'supervisor')
         }),
-        ('Personas Involucradas', {
-            'fields': ('solicitante', 'colaborador', 'supervisor')
+        ('Asignaciones', {
+            'fields': ('manufacturador', 'instalador')
         }),
-        ('Fechas de Programación', {
+        ('Fechas', {
             'fields': ('fecha_inicio', 'fecha_fin')
         }),
-        ('Observaciones', {
-            'fields': ('observaciones',)
-        }),
-        ('Auditoría', {
-            'fields': ('created_at', 'updated_at'),
+        ('Observaciones y Auditoría', {
+            'fields': ('observaciones', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
@@ -113,14 +113,12 @@ class ItemPedidoServicioAdmin(admin.ModelAdmin):
     ]
     
     fieldsets = (
-        ('Información del Item', {
+        ('Relación', {
             'fields': ('pedido_servicio', 'numero_item')
         }),
-        ('Ambiente', {
-            'fields': ('ambiente',)
-        }),
-        ('Especificaciones Técnicas', {
+        ('Especificaciones', {
             'fields': (
+                'ambiente',
                 'modelo',
                 'tejido',
                 'largura',
@@ -129,10 +127,8 @@ class ItemPedidoServicioAdmin(admin.ModelAdmin):
                 'posicion_tejido',
                 'lado_comando',
                 'acionamiento',
+                'observaciones',
             )
-        }),
-        ('Observaciones', {
-            'fields': ('observaciones',)
         }),
         ('Auditoría', {
             'fields': ('created_at', 'updated_at'),
@@ -147,40 +143,4 @@ class ItemPedidoServicioAdmin(admin.ModelAdmin):
     
     ordering = ['pedido_servicio', 'numero_item']
 
-
-@admin.register(AsignacionTarea)
-class AsignacionTareaAdmin(admin.ModelAdmin):
-    """Interfaz de administración para Asignaciones de Tareas"""
-    list_display = [
-        'pedido',
-        'instalador',
-        'tipo_tarea',
-        'estado',
-        'fecha_asignacion',
-        'fecha_entrega_esperada',
-    ]
-    list_filter = [
-        'tipo_tarea',
-        'estado',
-        'fecha_asignacion',
-        'instalador',
-    ]
-    search_fields = [
-        'pedido__numero_pedido',
-        'instalador__nombre',
-        'instalador__apellido',
-    ]
-    fieldsets = (
-        ('Información de la Tarea', {
-            'fields': ('pedido', 'instalador', 'tipo_tarea', 'estado')
-        }),
-        ('Fechas', {
-            'fields': ('fecha_asignacion', 'fecha_inicio_real', 'fecha_entrega_esperada', 'fecha_completacion')
-        }),
-        ('Descripción', {
-            'fields': ('descripcion_tarea', 'notas_progreso')
-        }),
-    )
-    readonly_fields = ('fecha_asignacion',)
-    ordering = ['-fecha_asignacion']
 

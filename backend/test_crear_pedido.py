@@ -13,7 +13,7 @@ django.setup()
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from clientes.models import Cliente
-from instaladores.models import Instalador
+from manufactura.models import Manufactura
 import json
 
 User = get_user_model()
@@ -25,7 +25,7 @@ if not cliente:
     sys.exit(1)
 
 # Obtener instalador
-instalador = Instalador.objects.first()
+instalador = Manufactura.objects.first()
 
 # Crear usuario de prueba
 user, _ = User.objects.get_or_create(

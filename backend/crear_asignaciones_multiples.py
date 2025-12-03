@@ -5,14 +5,14 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cotidomo_backend.settings')
 django.setup()
 
 from pedidos_servicio.models import PedidoServicio, AsignacionTarea
-from instaladores.models import Instalador
+from manufactura.models import Manufactura
 
 # Obtener todos los pedidos
 pedidos = PedidoServicio.objects.all().order_by('-created_at')
 print(f"Total de pedidos: {pedidos.count()}")
 
 # Obtener instaladores disponibles
-instaladores = list(Instalador.objects.all())
+instaladores = list(Manufactura.objects.all())
 print(f"Instaladores disponibles: {len(instaladores)}")
 
 if not instaladores:

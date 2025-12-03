@@ -1,24 +1,64 @@
 from django.contrib import admin
-from .models import Cotizacion, DetalleCotizacion
+from .models import Cotizacion, ItemCotizacion
 
-class DetalleCotizacionInline(admin.TabularInline):
-    model = DetalleCotizacion
+
+class ItemCotizacionInline(admin.TabularInline):
+    model = ItemCotizacion
     extra = 1
+    # Usamos 'producto' porque es el nombre de la FK en ItemCotizacion
     autocomplete_fields = ['producto']
+
 
 @admin.register(Cotizacion)
 class CotizacionAdmin(admin.ModelAdmin):
-    list_display = ('numero_cotizacion', 'cliente', 'estado', 'total', 'fecha_vencimiento', 'creado_por')
-    list_filter = ('estado', 'fecha_vencimiento', 'created_at')
-    search_fields = ('numero_cotizacion', 'cliente__nombre')
-    inlines = [DetalleCotizacionInline]
+    # CORRECCIÓN: Usamos la nomenclatura del modelo
+    list_display = (
+        'numero',             # Antes: numero_cotizacion
+        'cliente',
+        'estado',
+        'total_general',      # Antes: total
+        'fecha_validez',      # Antes: fecha_vencimiento
+        'usuario_creacion',   # Antes: creado_por (viene de BaseModel)
+    )
+
+    # CORRECCIÓN: Usamos la nomenclatura del modelo
+    list_filter = (
+        'estado',
+        'fecha_validez',      # Antes: fecha_vencimiento
+        'created_at'          # Usamos created_at (de BaseModel)
+    )
+
+    # CORRECCIÓN: Usamos la nomenclatura del modelo
+    search_fields = (
+        'numero',             # Antes: numero_cotizacion
+        'cliente__nombre'
+    )
+
+    inlines = [ItemCotizacionInline]
     autocomplete_fields = ['cliente']
-    readonly_fields = ('numero_cotizacion', 'total')
 
-@admin.register(DetalleCotizacion)
-class DetalleCotizacionAdmin(admin.ModelAdmin):
-    list_display = ('cotizacion', 'producto', 'cantidad', 'precio_unitario', 'subtotal')
-    search_fields = ('cotizacion__id', 'producto__nombre')
+    # CORRECCIÓN: Campos de solo lectura
+    readonly_fields = (
+        'numero',             # Antes: numero_cotizacion
+        'total_general'       # Antes: total
+    )
+
+
+@admin.register(ItemCotizacion)
+class ItemCotizacionAdmin(admin.ModelAdmin):
+    # CORRECCIÓN: Usamos la nomenclatura del modelo
+    list_display = (
+        'cotizacion',
+        'producto',
+        'cantidad',
+        'precio_unitario',
+        'precio_total'        # Antes: subtotal
+    )
+
+    search_fields = ('cotizacion__numero', 'producto__nombre')
     autocomplete_fields = ['cotizacion', 'producto']
-    readonly_fields = ('subtotal',)
 
+    # CORRECCIÓN: Campos de solo lectura
+    readonly_fields = (
+        'precio_total',       # Antes: subtotal
+    )

@@ -1,35 +1,35 @@
 from django.core.management.base import BaseCommand
-from instaladores.models import Instalador
+from manufactura.models import Manufactura
 from common.fixtures.seed_instaladores import INSTALADORES_DATA
 
 
 class Command(BaseCommand):
-    help = 'Carga instaladores de prueba en la base de datos'
+    help = 'Carga personal de manufactura (instaladores y fabricadores) de prueba en la base de datos'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--delete',
             action='store_true',
-            help='Eliminar todos los instaladores antes de cargar nuevos',
+            help='Eliminar todo el personal de manufactura antes de cargar nuevos',
         )
 
     def handle(self, *args, **options):
         if options['delete']:
-            count = Instalador.objects.all().count()
-            Instalador.objects.all().delete()
-            self.stdout.write(self.style.SUCCESS(f'✓ {count} instaladores eliminados'))
+            count = Manufactura.objects.all().count()
+            Manufactura.objects.all().delete()
+            self.stdout.write(self.style.SUCCESS(f'✓ {count} registros de manufactura eliminados'))
 
         created_count = 0
         skipped_count = 0
         errors = []
 
-        self.stdout.write('Cargando instaladores...\n')
+        self.stdout.write('Cargando personal de manufactura...\n')
 
         for data in INSTALADORES_DATA:
             documento = data['documento']
             
             # Verificar si ya existe
-            if Instalador.objects.filter(documento=documento).exists():
+            if Manufactura.objects.filter(documento=documento).exists():
                 skipped_count += 1
                 self.stdout.write(
                     self.style.WARNING(f'⊘ {data["nombre"]} {data["apellido"]} ({documento}) - Ya existe')
@@ -37,10 +37,10 @@ class Command(BaseCommand):
                 continue
             
             try:
-                instalador = Instalador.objects.create(**data)
+                personal = Manufactura.objects.create(**data)
                 created_count += 1
                 self.stdout.write(
-                    self.style.SUCCESS(f'✓ {instalador.get_full_name()} (ID: {instalador.id})')
+                    self.style.SUCCESS(f'✓ {personal.get_full_name()} - {personal.cargo} (ID: {personal.id})')
                 )
             except Exception as e:
                 skipped_count += 1
@@ -48,7 +48,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f'✗ Error con {documento}: {str(e)}'))
 
         # Resumen
-        self.stdout.write('\n' + '='*60)
+        self.stdout.write('\n' + '='*70)
         self.stdout.write(self.style.SUCCESS(f'✓ Creados: {created_count}'))
         self.stdout.write(self.style.WARNING(f'⊘ Saltados: {skipped_count}'))
         
@@ -59,15 +59,26 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS('\n✓ Carga completada\n'))
 
-        # Mostrar disponibles
-        self.stdout.write('Instaladores disponibles:')
-        self.stdout.write('-' * 60)
-        instaladores = Instalador.objects.all().order_by('nombre')
-        for inst in instaladores:
-            estado_icon = '✓' if inst.estado == 'ACTIVO' else '✗'
+        # Mostrar disponibles por cargo
+        self.stdout.write('Personal de Manufactura disponible:')
+        self.stdout.write('-' * 70)
+        
+        fabricadores = Manufactura.objects.filter(cargo='FABRICADOR').order_by('nombre')
+        instaladores = Manufactura.objects.filter(cargo='INSTALADOR').order_by('nombre')
+        
+        self.stdout.write('\n📦 FABRICADORES:')
+        for personal in fabricadores:
+            estado_icon = '✓' if personal.estado == 'ACTIVO' else '✗'
             self.stdout.write(
-                f'{estado_icon} ID: {inst.id:2d} | {inst.get_full_name():30s} | {inst.documento:15s} | {inst.especialidad}'
+                f'  {estado_icon} ID: {personal.id:2d} | {personal.get_full_name():30s} | {personal.documento:15s}'
             )
         
-        self.stdout.write('-' * 60)
-        self.stdout.write(f'Total: {instaladores.count()} instaladores\n')
+        self.stdout.write('\n🔧 INSTALADORES:')
+        for personal in instaladores:
+            estado_icon = '✓' if personal.estado == 'ACTIVO' else '✗'
+            self.stdout.write(
+                f'  {estado_icon} ID: {personal.id:2d} | {personal.get_full_name():30s} | {personal.documento:15s}'
+            )
+        
+        self.stdout.write('-' * 70)
+        self.stdout.write(f'Total: {Manufactura.objects.count()} registros\n')

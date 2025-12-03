@@ -8,7 +8,7 @@ django.setup()
 
 from core.models import User
 from clientes.models import Cliente
-from instaladores.models import Instalador
+from manufactura.models import Manufactura
 from pedidos_servicio.models import PedidoServicio, AsignacionTarea
 from common.models import Pais
 
@@ -53,7 +53,7 @@ try:
     
     # Try to get an Instalador
     try:
-        instalador = Instalador.objects.first()
+        instalador = Manufactura.objects.first()
         if instalador:
             # Create AsignacionTarea
             tarea = AsignacionTarea.objects.create(

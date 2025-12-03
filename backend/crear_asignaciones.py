@@ -5,14 +5,14 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cotidomo_backend.settings')
 django.setup()
 
 from pedidos_servicio.models import PedidoServicio, AsignacionTarea
-from instaladores.models import Instalador
+from manufactura.models import Manufactura
 
 # Obtener el pedido más reciente
 pedido = PedidoServicio.objects.last()
 print(f"Pedido: {pedido.numero_pedido}")
 
 # Obtener un instalador
-instalador = Instalador.objects.first()
+instalador = Manufactura.objects.first()
 print(f"Instalador: {instalador.get_full_name()}")
 
 # Crear asignación de FABRICACION
@@ -27,7 +27,7 @@ tarea_fab = AsignacionTarea.objects.create(
 print(f"✓ Asignación de Fabricación creada: {tarea_fab}")
 
 # Obtener otro instalador para instalación
-instaladores = Instalador.objects.all()
+instaladores = Manufactura.objects.all()
 if len(instaladores) > 1:
     instalador2 = instaladores[1]
     tarea_inst = AsignacionTarea.objects.create(

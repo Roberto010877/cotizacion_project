@@ -1,140 +1,109 @@
 from rest_framework import serializers
 from .models import PedidoServicio, ItemPedidoServicio
 from clientes.models import Cliente
-from instaladores.models import Instalador
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from manufactura.models import Manufactura
 
 
+# -------------------------
+# CLIENTE
+# -------------------------
 class ClienteBasicSerializer(serializers.ModelSerializer):
-    """Serializer básico para Cliente (lectura)"""
-    
     class Meta:
         model = Cliente
-        fields = ['id', 'nombre', 'numero_documento', 'email', 'telefono']
+        fields = ['id', 'nombre', 'numero_documento', 'email', 'telefono', 'num_contacto', 'direccion']
         read_only_fields = fields
 
 
+# -------------------------
+# COLABORADOR (manufacturador / INSTALADOR)
+# -------------------------
 class ColaboradorBasicSerializer(serializers.ModelSerializer):
-    """Serializer básico para Instalador (lectura)"""
-    
-    full_name = serializers.CharField(
-        source='get_full_name',
-        read_only=True
-    )
-    
+    full_name = serializers.SerializerMethodField()
+
+    def get_full_name(self, obj):
+        if obj is None:
+            return None
+        return f"{obj.nombre} {obj.apellido}".strip()
+
     class Meta:
-        model = Instalador
+        model = Manufactura
         fields = ['id', 'full_name', 'documento', 'email', 'especialidad', 'estado']
         read_only_fields = fields
 
 
-class ItemPedidoServicioCreateSerializer(serializers.Serializer):
-    """Serializer para crear items anidados"""
-    ambiente = serializers.CharField(max_length=100)
-    modelo = serializers.CharField(max_length=100)
-    tejido = serializers.CharField(max_length=100)
-    largura = serializers.FloatField()
-    altura = serializers.FloatField()
-    cantidad_piezas = serializers.IntegerField()
-    posicion_tejido = serializers.CharField(max_length=20, default='NORMAL')
-    lado_comando = serializers.CharField(max_length=20, default='IZQUIERDO')
-    acionamiento = serializers.CharField(max_length=20, default='MANUAL')
-    observaciones = serializers.CharField(required=False, allow_blank=True)
-
-
+# -------------------------
+# ITEM
+# -------------------------
 class ItemPedidoServicioSerializer(serializers.ModelSerializer):
-    """Serializer para Items de PedidoServicio"""
-    
-    posicion_tejido_display = serializers.CharField(
-        source='get_posicion_tejido_display',
-        read_only=True
-    )
-    
-    lado_comando_display = serializers.CharField(
-        source='get_lado_comando_display',
-        read_only=True
-    )
-    
-    acionamiento_display = serializers.CharField(
-        source='get_acionamiento_display',
-        read_only=True
-    )
-    
+
+    posicion_tejido_display = serializers.CharField(source='get_posicion_tejido_display', read_only=True)
+    lado_comando_display = serializers.CharField(source='get_lado_comando_display', read_only=True)
+    acionamiento_display = serializers.CharField(source='get_acionamiento_display', read_only=True)
+
     class Meta:
         model = ItemPedidoServicio
         fields = [
-            'id',
-            'numero_item',
-            'ambiente',
-            'modelo',
-            'tejido',
-            'largura',
-            'altura',
-            'cantidad_piezas',
-            'posicion_tejido',
-            'posicion_tejido_display',
-            'lado_comando',
-            'lado_comando_display',
-            'acionamiento',
-            'acionamiento_display',
-            'observaciones',
-            'created_at',
-            'updated_at',
+            'id', 'numero_item', 'ambiente', 'modelo', 'tejido',
+            'largura', 'altura', 'cantidad_piezas',
+            'posicion_tejido', 'posicion_tejido_display',
+            'lado_comando', 'lado_comando_display',
+            'acionamiento', 'acionamiento_display',
+            'observaciones', 'created_at', 'updated_at',
         ]
-        read_only_fields = [
-            'id',
-            'created_at',
-            'updated_at',
-        ]
+        read_only_fields = ['id', 'numero_item', 'created_at', 'updated_at']
 
 
+# -------------------------
+# PEDIDO COMPLETO (CREATE / UPDATE)
+# -------------------------
 class PedidoServicioSerializer(serializers.ModelSerializer):
-    """Serializer completo para PedidoServicio con items anidados"""
-    
+
     cliente = ClienteBasicSerializer(read_only=True)
     cliente_id = serializers.PrimaryKeyRelatedField(
-        queryset=Cliente.objects.all(),
-        write_only=True,
-        source='cliente'
+        queryset=Cliente.objects.all(), write_only=True, source='cliente'
     )
-    
-    colaborador = ColaboradorBasicSerializer(read_only=True)
-    colaborador_id = serializers.PrimaryKeyRelatedField(
-        queryset=Instalador.objects.all(),
+
+    manufacturador = ColaboradorBasicSerializer(read_only=True)
+    manufacturador_id = serializers.PrimaryKeyRelatedField(
+        queryset=Manufactura.objects.all(),
         write_only=True,
-        source='colaborador',
+        source='manufacturador',
         required=False,
         allow_null=True
     )
-    
-    items = ItemPedidoServicioSerializer(
-        many=True,
-        read_only=True
-    )
-    
-    items_data = ItemPedidoServicioCreateSerializer(
-        many=True,
+
+    instalador = ColaboradorBasicSerializer(read_only=True)
+    instalador_id = serializers.PrimaryKeyRelatedField(
+        queryset=Manufactura.objects.all(),
         write_only=True,
-        required=False
+        source='instalador',
+        required=False,
+        allow_null=True
     )
-    
-    estado_display = serializers.CharField(
-        source='get_estado_display',
-        read_only=True
-    )
-    
+
+    items = ItemPedidoServicioSerializer(many=True, read_only=True)
+
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+
+    solicitante_nombre = serializers.SerializerMethodField()
+
+    def get_solicitante_nombre(self, obj):
+        if obj.usuario_creacion:
+            return obj.usuario_creacion.get_full_name()
+        return None
+
     class Meta:
         model = PedidoServicio
         fields = [
             'id',
             'numero_pedido',
-            'solicitante',
+            'solicitante_nombre',
             'cliente',
             'cliente_id',
-            'colaborador',
-            'colaborador_id',
+            'manufacturador',
+            'manufacturador_id',
+            'instalador',
+            'instalador_id',
             'supervisor',
             'fecha_inicio',
             'fecha_fin',
@@ -142,69 +111,46 @@ class PedidoServicioSerializer(serializers.ModelSerializer):
             'estado_display',
             'observaciones',
             'items',
-            'items_data',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = [
-            'id',
-            'numero_pedido',
-            'created_at',
-            'updated_at',
-        ]
-    
-    def create(self, validated_data):
-        """Crear nuevo pedido de servicio con items anidados"""
-        items_data = validated_data.pop('items_data', [])
-        pedido = PedidoServicio.objects.create(**validated_data)
-        
-        # Crear items asociados con número de item secuencial
-        for index, item_data in enumerate(items_data, start=1):
-            ItemPedidoServicio.objects.create(
-                pedido_servicio=pedido,
-                numero_item=index,
-                **item_data
-            )
-        
-        return pedido
-    
-    def update(self, instance, validated_data):
-        """Actualizar pedido de servicio"""
-        validated_data.pop('items_data', [])  # No actualizar items en PATCH
-        
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
+        read_only_fields = ['id', 'numero_pedido', 'created_at', 'updated_at']
 
 
+# -------------------------
+# LISTADO
+# -------------------------
 class PedidoServicioListSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listados"""
-    
-    cliente_nombre = serializers.CharField(
-        source='cliente.nombre',
-        read_only=True
-    )
-    
-    colaborador_nombre = serializers.SerializerMethodField(
-        help_text="Nombre completo del instalador/colaborador"
-    )
-    
-    estado_display = serializers.CharField(
-        source='get_estado_display',
-        read_only=True
-    )
-    
-    total_items = serializers.SerializerMethodField()
-    
+
+    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+    total_items = serializers.IntegerField(source='items.count', read_only=True)
+
+    manufacturador_nombre = serializers.SerializerMethodField()
+    instalador_nombre = serializers.SerializerMethodField()
+    solicitante_nombre = serializers.SerializerMethodField()
+
+    def get_manufacturador_nombre(self, obj):
+        return f"{obj.manufacturador.nombre} {obj.manufacturador.apellido}".strip() if obj.manufacturador else None
+
+    def get_instalador_nombre(self, obj):
+        return f"{obj.instalador.nombre} {obj.instalador.apellido}".strip() if obj.instalador else None
+
+    def get_solicitante_nombre(self, obj):
+        if obj.usuario_creacion:
+            return obj.usuario_creacion.get_full_name()
+        return None
+
     class Meta:
         model = PedidoServicio
         fields = [
             'id',
             'numero_pedido',
-            'solicitante',
+            'solicitante_nombre',
             'cliente_nombre',
-            'colaborador_nombre',
+            'manufacturador_nombre',
+            'instalador_nombre',
+            'supervisor',
             'fecha_inicio',
             'fecha_fin',
             'estado',
@@ -212,41 +158,47 @@ class PedidoServicioListSerializer(serializers.ModelSerializer):
             'total_items',
             'created_at',
         ]
-        read_only_fields = fields
-    
-    def get_colaborador_nombre(self, obj):
-        """Retorna el nombre completo del colaborador o vacío si no existe"""
-        if obj.colaborador:
-            return obj.colaborador.get_full_name() or obj.colaborador.username
-        return None
-    
-    def get_total_items(self, obj):
-        """Retorna la cantidad total de items en el pedido"""
-        return obj.items.count()
 
 
+# -------------------------
+# DETALLE
+# -------------------------
 class PedidoServicioDetailSerializer(serializers.ModelSerializer):
-    """Serializer detallado para visualización completa de un pedido"""
-    
+
     cliente = ClienteBasicSerializer(read_only=True)
-    colaborador = ColaboradorBasicSerializer(read_only=True)
-    items = ItemPedidoServicioSerializer(
-        many=True,
-        read_only=True
-    )
-    estado_display = serializers.CharField(
-        source='get_estado_display',
-        read_only=True
-    )
-    
+    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    manufacturador = ColaboradorBasicSerializer(read_only=True)
+    instalador = ColaboradorBasicSerializer(read_only=True)
+    items = ItemPedidoServicioSerializer(many=True, read_only=True)
+
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+    solicitante_nombre = serializers.SerializerMethodField()
+    manufacturador_nombre = serializers.SerializerMethodField()
+    instalador_nombre = serializers.SerializerMethodField()
+
+    def get_solicitante_nombre(self, obj):
+        if obj.usuario_creacion:
+            return obj.usuario_creacion.get_full_name()
+        return None
+
+    def get_manufacturador_nombre(self, obj):
+        return f"{obj.manufacturador.nombre} {obj.manufacturador.apellido}".strip() if obj.manufacturador else None
+
+    def get_instalador_nombre(self, obj):
+        return f"{obj.instalador.nombre} {obj.instalador.apellido}".strip() if obj.instalador else None
+
     class Meta:
         model = PedidoServicio
         fields = [
             'id',
             'numero_pedido',
-            'solicitante',
+            'solicitante_nombre',
             'cliente',
-            'colaborador',
+            'cliente_nombre',
+            'manufacturador',
+            'manufacturador_nombre',
+            'instalador',
+            'instalador_nombre',
             'supervisor',
             'fecha_inicio',
             'fecha_fin',
@@ -254,100 +206,6 @@ class PedidoServicioDetailSerializer(serializers.ModelSerializer):
             'estado_display',
             'observaciones',
             'items',
-            'created_at',
-            'updated_at',
-        ]
-        read_only_fields = [
-            'id',
-            'numero_pedido',
-            'created_at',
-            'updated_at',
-        ]
-
-
-class AsignacionTareaSerializer(serializers.ModelSerializer):
-    """Serializer para Asignaciones de Tareas"""
-    
-    pedido_numero = serializers.CharField(
-        source='pedido.numero_pedido',
-        read_only=True
-    )
-    
-    instalador_nombre = serializers.CharField(
-        source='instalador.get_full_name',
-        read_only=True
-    )
-    
-    tipo_tarea_display = serializers.CharField(
-        source='get_tipo_tarea_display',
-        read_only=True
-    )
-    
-    estado_display = serializers.CharField(
-        source='get_estado_display',
-        read_only=True
-    )
-    
-    # Items del pedido (anidados)
-    pedido_items = ItemPedidoServicioSerializer(
-        source='pedido.items',
-        many=True,
-        read_only=True
-    )
-    
-    # Cliente del pedido
-    cliente_nombre = serializers.CharField(
-        source='pedido.cliente.nombre',
-        read_only=True
-    )
-    
-    cliente_telefono = serializers.CharField(
-        source='pedido.cliente.telefono',
-        read_only=True
-    )
-    
-    # Solicitante
-    solicitante = serializers.CharField(
-        source='pedido.solicitante',
-        read_only=True
-    )
-    
-    # Observaciones del pedido
-    observaciones_pedido = serializers.CharField(
-        source='pedido.observaciones',
-        read_only=True
-    )
-    
-    class Meta:
-        from .models import AsignacionTarea
-        model = AsignacionTarea
-        fields = [
-            'id',
-            'pedido',
-            'pedido_numero',
-            'cliente_nombre',
-            'cliente_telefono',
-            'solicitante',
-            'instalador',
-            'instalador_nombre',
-            'tipo_tarea',
-            'tipo_tarea_display',
-            'estado',
-            'estado_display',
-            'fecha_asignacion',
-            'fecha_inicio_real',
-            'fecha_entrega_esperada',
-            'fecha_completacion',
-            'descripcion_tarea',
-            'notas_progreso',
-            'observaciones_pedido',
-            'pedido_items',
-            'created_at',
-            'updated_at',
-        ]
-        read_only_fields = [
-            'id',
-            'fecha_asignacion',
             'created_at',
             'updated_at',
         ]

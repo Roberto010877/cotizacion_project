@@ -66,6 +66,14 @@ class Cliente(BaseModel):
         help_text="Incluir código de país"
     )
     
+    num_contacto = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name="Número de Contacto",
+        help_text="Número adicional para contactarse con el cliente"
+    )
+    
     email = models.EmailField(
         blank=True, 
         verbose_name="Correo Electrónico"

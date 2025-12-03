@@ -4,293 +4,493 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.http import FileResponse
+from django.db import transaction
+from rest_framework.pagination import PageNumberPagination
 
-from .models import PedidoServicio, AsignacionTarea, ItemPedidoServicio
+from .models import PedidoServicio, ItemPedidoServicio
 from .serializers import (
     PedidoServicioSerializer,
     PedidoServicioListSerializer,
     PedidoServicioDetailSerializer,
-    AsignacionTareaSerializer,
     ItemPedidoServicioSerializer,
-    ItemPedidoServicioCreateSerializer,
 )
-from rest_framework.pagination import PageNumberPagination
+
+from .permissions import (
+    CanViewPedidos,
+    CanCreatePedidos,
+    CanEditPedidos,
+    CanDeletePedidos,
+)
+
+from .services import PedidoServicioService
+from .constants import PEDIDOS_PER_PAGE, PEDIDOS_MAX_PER_PAGE
+from .pdf_generator import generate_pedido_pdf
+
+import logging
+logger = logging.getLogger(__name__)
 
 
+# -------------------------
+# PAGINACIÓN
+# -------------------------
 class PedidoServicioPagination(PageNumberPagination):
-    """Paginación personalizada para pedidos de servicio"""
-    page_size = 25
+    page_size = PEDIDOS_PER_PAGE
     page_size_query_param = 'page_size'
-    page_size_query_max = 100
-    max_page_size = 100
+    max_page_size = PEDIDOS_MAX_PER_PAGE
 
 
+# -------------------------
+# VIEWSET PRINCIPAL
+# -------------------------
 class PedidoServicioViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gestionar Pedidos de Servicio.
-    
-    Permisos:
-    - Colaboradores: pueden crear pedidos propios y listar los suyos
-    - Administrador: puede ver, editar y cambiar estado de todos los pedidos
-    
-    Endpoints:
-    - GET /api/v1/pedidos-servicio/ - Listar pedidos
-    - POST /api/v1/pedidos-servicio/ - Crear pedido
-    - GET /api/v1/pedidos-servicio/{id}/ - Detalle de pedido
-    - PUT/PATCH /api/v1/pedidos-servicio/{id}/ - Actualizar pedido
-    - DELETE /api/v1/pedidos-servicio/{id}/ - Eliminar pedido
-    - POST /api/v1/pedidos-servicio/{id}/cambiar-estado/ - Cambiar estado
-    """
-    
+
     queryset = PedidoServicio.objects.all()
     serializer_class = PedidoServicioSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = PedidoServicioPagination
-    
+
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['estado', 'cliente', 'colaborador', 'fecha_inicio']
-    search_fields = [
-        'numero_pedido',
-        'cliente__nombre',
-        'solicitante',
-    ]
-    ordering_fields = [
-        'created_at',
-        'fecha_inicio',
-        'estado',
-        'cliente__nombre',
-    ]
+    filterset_fields = ['estado', 'cliente', 'manufacturador', 'instalador']
+    search_fields = ['numero_pedido', 'cliente__nombre', 'solicitante']
+    ordering_fields = ['created_at', 'fecha_inicio', 'estado']
     ordering = ['-created_at']
-    
+
+
+    # -------------------------
+    # PERMISOS POR ACCIÓN
+    # -------------------------
+    def get_permissions(self):
+
+        if self.action in ['list', 'retrieve', 'mis_pedidos', 'estadisticas']:
+            permission_classes = [IsAuthenticated, CanViewPedidos]
+
+        elif self.action == 'create':
+            permission_classes = [IsAuthenticated, CanCreatePedidos]
+
+        elif self.action in ['update', 'partial_update']:
+            permission_classes = [IsAuthenticated, CanEditPedidos]
+        
+        elif self.action == 'cambiar_estado':
+            # Solo requiere autenticación, los permisos específicos se validan dentro del método
+            permission_classes = [IsAuthenticated]
+
+        elif self.action == 'destroy':
+            permission_classes = [IsAuthenticated, CanDeletePedidos]
+
+        else:
+            permission_classes = [IsAuthenticated]
+
+        return [permission() for permission in permission_classes]
+
+
+    # -------------------------
+    # SERIALIZER DINÁMICO
+    # -------------------------
     def get_serializer_class(self):
-        """Usar serializer diferente según la acción"""
+
         if self.action == 'list':
             return PedidoServicioListSerializer
-        elif self.action == 'retrieve':
+
+        if self.action == 'retrieve':
             return PedidoServicioDetailSerializer
+
         return PedidoServicioSerializer
-    
+
+
+    # -------------------------
+    # FILTRADO POR GRUPOS
+    # -------------------------
     def get_queryset(self):
-        """Filtrar pedidos según el usuario (colaboradores ven todos, admins ver todos)"""
-        queryset = super().get_queryset()
-        return queryset
-    
+
+        user = self.request.user
+
+        queryset = PedidoServicio.objects.select_related(
+            'cliente', 'manufacturador', 'instalador'
+        ).prefetch_related('items')
+
+        # ✅ Admin/Superuser: ve TODO
+        if user.is_superuser:
+            return queryset
+
+        # Obtener grupos del usuario
+        user_groups = user.groups.values_list('name', flat=True)
+        is_comercial = any(g.lower() == 'comercial' for g in user_groups)
+        is_manufacturador = any(g.lower() == 'manufacturador' for g in user_groups)
+        is_instalador = any(g.lower() == 'instalador' for g in user_groups)
+
+        # ✅ Comercial: solo los pedidos que él creó
+        if is_comercial:
+            return queryset.filter(usuario_creacion=user)
+
+        # ✅ Manufacturador: solo pedidos donde está asignado como manufacturador
+        if is_manufacturador:
+            if hasattr(user, 'personal_manufactura'):
+                return queryset.filter(manufacturador=user.personal_manufactura)
+            return queryset.none()
+
+        # ✅ Instalador: solo pedidos donde está asignado como instalador
+        if is_instalador:
+            if hasattr(user, 'personal_manufactura'):
+                return queryset.filter(instalador=user.personal_manufactura)
+            return queryset.none()
+
+        # ✅ Manufacturador/Instalador sin grupo específico pero con personal_manufactura
+        # Ver pedidos donde está asignado en cualquier rol
+        if hasattr(user, 'personal_manufactura'):
+            from django.db.models import Q
+            personal = user.personal_manufactura
+            return queryset.filter(
+                Q(manufacturador=personal) | Q(instalador=personal)
+            )
+
+        # Usuario sin rol específico - no ve nada
+        return queryset.none()
+
+
+    # -------------------------
+    # CREACIÓN (✅ solicitante corregido)
+    # -------------------------
     def perform_create(self, serializer):
-        """Crear pedido sin asignar colaborador automático"""
-        serializer.save()
-    
-    @action(detail=True, methods=['post'])
-    def items(self, request, pk=None):
+        user = self.request.user
+        nombre = user.get_full_name() or user.username
+
+        serializer.save(
+            usuario_creacion=user,
+            solicitante=nombre
+        )
+
+
+    # -------------------------
+    # CREACIÓN ATÓMICA (PEDIDO + ITEMS)
+    # -------------------------
+    @action(detail=False, methods=['post'], url_path='crear-con-items')
+    def crear_con_items(self, request):
         """
-        Endpoint para crear items en un pedido de servicio.
+        Crea un pedido con sus items de forma atómica.
+        Si algún item falla la validación, NO se crea el pedido.
         
-        Uso:
-        POST /api/v1/pedidos-servicio/{id}/items/
-        Body: {
-            "ambiente": "Varanda",
-            "modelo": "Rolô",
-            "tejido": "Screen 3% branco",
-            "largura": 2.5,
-            "altura": 1.8,
-            "cantidad_piezas": 1,
-            "posicion_tejido": "NORMAL",
-            "lado_comando": "IZQUIERDO",
-            "acionamiento": "MANUAL",
-            "observaciones": "..."
+        Body esperado:
+        {
+            "pedido": {
+                "cliente_id": 1,
+                "manufacturador_id": 2,
+                "instalador_id": 3,
+                "solicitante": "Juan Pérez",
+                "supervisor": "María López",
+                "fecha_inicio": "2025-01-15",
+                "fecha_fin": "2025-01-20",
+                "observaciones": "Notas adicionales",
+                "estado": "ENVIADO"
+            },
+            "items": [
+                {
+                    "ambiente": "Sala",
+                    "modelo": "Roller",
+                    "tejido": "Screen 5%",
+                    "largura": 2.50,
+                    "altura": 1.80,
+                    "cantidad_piezas": 2,
+                    "posicion_tejido": "NORMAL",
+                    "lado_comando": "DERECHO",
+                    "acionamiento": "MANUAL",
+                    "observaciones": ""
+                }
+            ]
         }
         """
-        pedido = self.get_object()
+        user = request.user
+        pedido_data = request.data.get('pedido', {})
+        items_data = request.data.get('items', [])
         
-        serializer = ItemPedidoServicioCreateSerializer(data=request.data)
+        if not items_data:
+            return Response(
+                {'detail': 'Debe incluir al menos un item'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            with transaction.atomic():
+                # 1. Validar y crear el pedido
+                pedido_serializer = PedidoServicioSerializer(data=pedido_data)
+                if not pedido_serializer.is_valid():
+                    return Response(
+                        {'detail': 'Error en datos del pedido', 'errors': pedido_serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Guardar pedido con usuario de creación
+                pedido = pedido_serializer.save(
+                    usuario_creacion=user,
+                    solicitante=pedido_data.get('solicitante', user.get_full_name() or user.username)
+                )
+                
+                # 2. Validar TODOS los items primero (sin crear nada)
+                items_validados = []
+                items_errors = []
+                
+                for idx, item_data in enumerate(items_data):
+                    item_serializer = ItemPedidoServicioSerializer(data=item_data)
+                    if item_serializer.is_valid():
+                        items_validados.append(item_serializer.validated_data)
+                        items_errors.append(None)
+                    else:
+                        items_validados.append(None)
+                        items_errors.append(item_serializer.errors)
+                
+                # Si hay errores, retornar SIN crear nada (el pedido tampoco se crea por el rollback)
+                if any(items_errors):
+                    return Response(
+                        {
+                            'detail': 'Hay errores de validación en los items del pedido',
+                            'errors': {
+                                'items': items_errors
+                            }
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # 3. Si todo está OK, crear los items
+                items_creados = []
+                for idx, validated_data in enumerate(items_validados, start=1):
+                    item = ItemPedidoServicio.objects.create(
+                        pedido_servicio=pedido,
+                        numero_item=idx,
+                        **validated_data
+                    )
+                    items_creados.append(item)
+                
+                # 4. Retornar el pedido creado con sus items
+                response_serializer = PedidoServicioDetailSerializer(pedido)
+                return Response(
+                    {
+                        'detail': f'Pedido creado exitosamente con {len(items_creados)} item(s)',
+                        'pedido': response_serializer.data
+                    },
+                    status=status.HTTP_201_CREATED
+                )
+                
+        except Exception as e:
+            # Error inesperado
+            logger.exception(f'Error creando pedido con items: {str(e)}')
+            return Response(
+                {'detail': f'Error al crear pedido: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+
+    # -------------------------
+    # ITEMS
+    # -------------------------
+    @action(detail=True, methods=['post'])
+    def items(self, request, pk=None):
+
+        pedido = self.get_object()
+        serializer = ItemPedidoServicioSerializer(data=request.data)
+
         if serializer.is_valid():
-            # Calcular el próximo número de item para este pedido
-            ultimo_item = pedido.items.last()
-            numero_item = (ultimo_item.numero_item + 1) if ultimo_item else 1
-            
-            # Crear el item asociado al pedido
+            numero_item = PedidoServicioService.get_next_numero_item(pedido.id)
             item = ItemPedidoServicio.objects.create(
                 pedido_servicio=pedido,
                 numero_item=numero_item,
                 **serializer.validated_data
             )
-            
-            # Retornar el item creado usando el serializer completo
-            item_serializer = ItemPedidoServicioSerializer(item)
-            return Response(item_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def cambiar_estado(self, request, pk=None):
-        """
-        Endpoint personalizado para cambiar el estado de un pedido.
-        
-        Uso:
-        POST /api/v1/pedidos-servicio/{id}/cambiar-estado/
-        Body: {"estado": "ACEPTADO"}
-        
-        Solo administrador puede cambiar estados.
-        """
+            return Response(ItemPedidoServicioSerializer(item).data, status=201)
+
+        return Response(serializer.errors, status=400)
+
+
+    @action(detail=True, methods=['delete'], url_path='items/(?P<item_id>[^/.]+)')
+    def delete_item(self, request, pk=None, item_id=None):
+
         pedido = self.get_object()
-        
-        # Solo admin puede cambiar estados
-        if not (request.user.is_staff or request.user.is_superuser):
-            return Response(
-                {'detail': 'No tiene permisos para cambiar el estado de pedidos.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
+
+        try:
+            item = ItemPedidoServicio.objects.get(id=item_id, pedido_servicio=pedido)
+            item.delete()
+            return Response(status=204)
+        except ItemPedidoServicio.DoesNotExist:
+            return Response({'detail': 'Item no encontrado'}, status=404)
+
+
+    # -------------------------
+    # CAMBIO DE ESTADO (✅ SEGURIDAD POR GRUPO Y ASIGNACIÓN)
+    # -------------------------
+    @action(detail=True, methods=['post'])
+    def cambiar_estado(self, request, pk=None):
+
+        pedido = self.get_object()
+        user = request.user
         nuevo_estado = request.data.get('estado')
-        
-        # Validar que el estado sea válido
+
         if nuevo_estado not in dict(PedidoServicio.EstadoPedido.choices):
-            return Response(
-                {'detail': f'Estado inválido. Debe ser uno de: {list(dict(PedidoServicio.EstadoPedido.choices).keys())}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Validar transiciones de estado permitidas
-        transiciones_validas = {
-            'ENVIADO': ['ACEPTADO', 'RECHAZADO', 'CANCELADO'],
-            'ACEPTADO': ['EJECUTADO', 'CANCELADO'],
-            'RECHAZADO': ['ENVIADO'],
-            'EJECUTADO': [],  # No puede cambiar estado final
-            'CANCELADO': ['ENVIADO'],
+            return Response({'detail': 'Estado inválido'}, status=400)
+
+        # ✅ VALIDACIÓN DE PERMISOS POR ESTADO
+        # Mapeo de estados a permisos requeridos
+        estado_permisos = {
+            'ACEPTADO': 'pedidos_servicio.can_change_to_aceptado',
+            'EN_FABRICACION': 'pedidos_servicio.can_change_to_en_fabricacion',
+            'LISTO_INSTALAR': 'pedidos_servicio.can_change_to_listo_instalar',
+            'INSTALADO': 'pedidos_servicio.can_change_to_instalado',
+            'COMPLETADO': 'pedidos_servicio.can_change_to_completado',
+            'RECHAZADO': 'pedidos_servicio.can_change_to_rechazado',
+            'CANCELADO': 'pedidos_servicio.can_change_to_cancelado',
         }
+
+        # Admin tiene todos los permisos
+        if not user.is_superuser:
+            # Verificar si tiene el permiso específico para este estado
+            permiso_requerido = estado_permisos.get(nuevo_estado)
+            if permiso_requerido and not user.has_perm(permiso_requerido):
+                return Response({
+                    'detail': f'No tienes permiso para cambiar el estado a {nuevo_estado}'
+                }, status=403)
+
+        # ✅ Comercial solo puede cambiar estados de SUS pedidos
+        if user.groups.filter(name='Comercial').exists():
+            if pedido.usuario_creacion != user:
+                return Response({'detail': 'No autorizado para este pedido'}, status=403)
         
-        if nuevo_estado not in transiciones_validas.get(pedido.estado, []):
-            return Response(
-                {'detail': f'No puede cambiar de {pedido.estado} a {nuevo_estado}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+        # ✅ manufacturador/instalador solo pueden cambiar SUS pedidos asignados
+        elif not user.is_superuser:
+            try:
+                personal = user.personal_manufactura
+                if pedido.manufacturador != personal and pedido.instalador != personal:
+                    return Response({'detail': 'No autorizado para este pedido'}, status=403)
+            except Exception:
+                # Si no tiene personal_manufactura y no es admin, no puede modificar
+                if not user.groups.filter(name='Comercial').exists():
+                    return Response({'detail': 'Usuario sin manufactura asignada'}, status=403)
+
+        # ✅ Validación de transición
+        is_valid, error = PedidoServicioService.validate_state_transition(
+            pedido.estado, nuevo_estado
+        )
+
+        if not is_valid:
+            return Response({'detail': error}, status=400)
+
         pedido.estado = nuevo_estado
         pedido.save()
-        
-        serializer = self.get_serializer(pedido)
-        return Response(serializer.data)
-    
+
+        return Response(self.get_serializer(pedido).data)
+
+
+    # -------------------------
+    # ELIMINAR PEDIDO
+    # -------------------------
+    def destroy(self, request, *args, **kwargs):
+        """
+        Elimina un pedido de servicio.
+        Solo se puede eliminar si está en estado ENVIADO, RECHAZADO o CANCELADO.
+        """
+        pedido = self.get_object()
+        user = request.user
+
+        # Lista de estados que NO permiten eliminación
+        estados_bloqueados = [
+            'ACEPTADO',
+            'EN_FABRICACION',
+            'LISTO_INSTALAR',
+            'INSTALADO',
+            'COMPLETADO'
+        ]
+
+        # Verificar si el estado permite eliminación
+        if pedido.estado in estados_bloqueados:
+            return Response({
+                'detail': f'No se puede eliminar un pedido en estado {pedido.get_estado_display()}. Solo se pueden eliminar pedidos en estado ENVIADO, RECHAZADO o CANCELADO.'
+            }, status=400)
+
+        # Verificar permisos de propiedad
+        # Solo el creador o un admin pueden eliminar
+        if not user.is_superuser:
+            # Verificar si tiene el permiso estándar de Django
+            if not user.has_perm('pedidos_servicio.delete_pedidoservicio'):
+                return Response({
+                    'detail': 'No tienes permiso para eliminar pedidos'
+                }, status=403)
+            
+            # Comercial solo puede eliminar sus propios pedidos
+            if user.groups.filter(name='Comercial').exists():
+                if pedido.usuario_creacion != user:
+                    return Response({
+                        'detail': 'Solo puedes eliminar pedidos que tú creaste'
+                    }, status=403)
+
+        # Registrar en log antes de eliminar
+        logger.info(f"Eliminando pedido {pedido.numero_pedido} (ID: {pedido.id}) por usuario {user.username}")
+
+        # Guardar información para respuesta
+        numero_pedido = pedido.numero_pedido
+
+        # Eliminar el pedido (los items se eliminan en cascada)
+        pedido.delete()
+
+        return Response({
+            'detail': f'Pedido {numero_pedido} eliminado correctamente'
+        }, status=status.HTTP_204_NO_CONTENT)
+
+
+    # -------------------------
+    # MIS PEDIDOS
+    # -------------------------
     @action(detail=False, methods=['get'])
     def mis_pedidos(self, request):
-        """
-        Endpoint para que colaboradores vean solo sus propios pedidos.
-        
-        Uso: GET /api/v1/pedidos-servicio/mis_pedidos/
-        """
-        queryset = PedidoServicio.objects.filter(colaborador=request.user)
-        
-        # Aplicar filtros
-        filterset_fields = {
-            'estado': request.query_params.get('estado'),
-            'fecha_programada': request.query_params.get('fecha_programada'),
-        }
-        
-        for field, value in filterset_fields.items():
-            if value:
-                queryset = queryset.filter(**{field: value})
-        
-        # Paginar
+
+        queryset = self.get_queryset()
+
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
-    def proximamente(self, request):
-        """
-        Endpoint para obtener pedidos próximos a ejecutar (próximos 7 días).
-        
-        Uso: GET /api/v1/pedidos-servicio/proximamente/
-        """
-        from datetime import timedelta
-        from django.utils import timezone
-        
-        hoy = timezone.now().date()
-        proxima_semana = hoy + timedelta(days=7)
-        
-        queryset = PedidoServicio.objects.filter(
-            fecha_programada__gte=hoy,
-            fecha_programada__lte=proxima_semana,
-            estado__in=['ACEPTADO', 'ENVIADO']
-        ).order_by('fecha_programada')
-        
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer_class()(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer_class()(queryset, many=True)
-        return Response(serializer.data)
-    
+            return self.get_paginated_response(
+                self.get_serializer(page, many=True).data
+            )
+
+        return Response(self.get_serializer(queryset, many=True).data)
+
+
+    # -------------------------
+    # ESTADÍSTICAS
+    # -------------------------
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):
         """
-        Endpoint para obtener estadísticas de pedidos.
-        
-        Uso: GET /api/v1/pedidos-servicio/estadisticas/
+        Retorna estadísticas de pedidos filtradas según el rol del usuario.
+        Usa get_queryset() para aplicar el filtrado por rol automáticamente.
         """
-        from django.db.models import Count
+        # Usar get_queryset() para aplicar filtros de rol
+        qs = self.get_queryset()
         
-        # Solo admin
-        if not (request.user.is_staff or request.user.is_superuser):
-            return Response(
-                {'detail': 'No tiene permisos para ver estadísticas.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        stats = PedidoServicio.objects.values('estado').annotate(count=Count('id'))
-        
+        # Agrupar por estado y contar
+        data = qs.values('estado').annotate(count=Count('id')).order_by('estado')
+
         return Response({
-            'total_pedidos': PedidoServicio.objects.count(),
-            'por_estado': stats,
+            'total_pedidos': qs.count(),
+            'por_estado': list(data)
         })
 
 
-class AsignacionTareaViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gestionar Asignaciones de Tareas.
-    
-    Permite:
-    - Listar tareas asignadas a un instalador
-    - Crear nuevas asignaciones
-    - Actualizar estado de tareas
-    - Ver detalles de cada tarea
-    """
-    
-    queryset = AsignacionTarea.objects.all()
-    serializer_class = AsignacionTareaSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = PedidoServicioPagination
-    
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['instalador', 'tipo_tarea', 'estado']
-    search_fields = ['pedido__numero_pedido', 'instalador__nombre', 'instalador__apellido']
-    ordering_fields = ['pedido__numero_pedido', 'tipo_tarea', 'fecha_entrega_esperada', 'estado', 'fecha_asignacion']
-    ordering = ['pedido__numero_pedido', 'tipo_tarea']
-    
-    def get_queryset(self):
-        """Filtrar tareas según el usuario
-        
-        - Admins/Superusers: ven TODAS las tareas
-        - Instaladores: ven solo sus tareas asignadas
-        - Otros: no ven nada
-        """
-        queryset = super().get_queryset().select_related('pedido', 'instalador')
-        
-        # Los admins y superusers ven TODAS
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return queryset
-        
-        # Los colaboradores solo ven tareas de su perfil de instalador
-        from instaladores.models import Instalador
-        try:
-            instalador = Instalador.objects.get(user=self.request.user)
-            return queryset.filter(instalador=instalador)
-        except Instalador.DoesNotExist:
-            # Si no tiene instalador asociado, retorna vacío
-            return queryset.none()
+    # -------------------------
+    # PDF
+    # -------------------------
+    @action(detail=True, methods=['get'])
+    def pdf(self, request, pk=None):
 
+        pedido = self.get_object()
+
+        try:
+            pdf_buffer = generate_pedido_pdf(pedido, request)
+
+            return FileResponse(
+                pdf_buffer,
+                as_attachment=True,
+                filename=f'Pedido_{pedido.numero_pedido}.pdf',
+                content_type='application/pdf'
+            )
+
+        except Exception as e:
+            logger.exception(str(e))
+            return Response({'detail': 'Error al generar PDF'}, status=500)
