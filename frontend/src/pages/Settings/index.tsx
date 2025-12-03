@@ -1,7 +1,7 @@
 import { useEffect, useState,useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { type ColumnDef } from "@tanstack/react-table";
-import axiosInstance from "@/lib/axios";
+import {apiClient} from "@/lib/apiClient";
 import toast, { Toaster } from "react-hot-toast";
 import { useAppTranslation } from "@/i18n/hooks";
 import { useSelector } from "react-redux";
@@ -47,7 +47,7 @@ type UserFormInputs = {
   email: string;
   password: string;
   confirmPassword: string;
-  role: "ADMIN" | "COLLABORATOR";
+  role: "ADMIN" | "COMERCIAL";
   firstName?: string;
   lastName?: string;
 };
@@ -84,7 +84,7 @@ const CreateUserForm = ({ onUserCreated }: { onUserCreated: () => void }) => {
         last_name: data.lastName
       };
 
-      await axiosInstance.post("/api/users/", userData);
+      await apiClient.post("/api/users/", userData);
       toast.dismiss(loadingToast);
       toast.success(t("user_created_successfully"));
       reset();
@@ -212,7 +212,7 @@ const CreateUserForm = ({ onUserCreated }: { onUserCreated: () => void }) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ADMIN">{t("role_admin")}</SelectItem>
-                    <SelectItem value="COLLABORATOR">{t("role_collaborator")}</SelectItem>
+                    <SelectItem value="COMERCIAL">{t("role_comercial")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {error && (
@@ -284,8 +284,11 @@ const SettingsPage = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const response = await axiosInstance.get("/api/users/");
-      setUsers(response.data);
+      const response = await apiClient.get("users/");
+      // El backend retorna un objeto paginado {count, next, previous, results}
+      // O directamente un array si no está paginado
+      const usersData = Array.isArray(response.data) ? response.data : response.data.results || [];
+      setUsers(usersData);
       setError(null);
     } catch (err) {
       setError("Failed to fetch users. Are you logged in as an admin?");
@@ -308,7 +311,7 @@ const SettingsPage = () => {
     try {
       const loadingToast = toast.loading(t("updating_user_status"));
       
-      await axiosInstance.patch(
+      await apiClient.patch(
         `/api/users/${userId}/toggle-status/`,
         { is_active: !currentStatus }
       );
@@ -341,7 +344,7 @@ const SettingsPage = () => {
     header: t("login:role"),
     cell: ({ row }) => {
       const role = row.getValue("role");
-     return role === "ADMIN" ? t("login:role_admin") : t("login:role_collaborator");
+     return role === "ADMIN" ? t("login:role_admin") : t("login:role_comercial");
     }
   },
   {
@@ -373,43 +376,7 @@ const SettingsPage = () => {
     <>
       <Toaster position="top-right" />
       <div className="grid gap-4">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
-              <div>
-                <CardTitle>{t("user_management")}</CardTitle>
-                <CardDescription>
-                  {t("user_management_description")}
-                </CardDescription>
-              </div>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto">
-                    {t("create_user")}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
-                  <DialogHeader>
-                    <DialogTitle>{t("create_new_user")}</DialogTitle>
-                    <DialogDescription>
-                      {t("create_user_description")}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <CreateUserForm onUserCreated={handleUserCreated} />
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {error ? (
-              <div className="text-red-500">{error}</div>
-            ) : (
-              <DataTable key={tableKey} columns={columns} data={users} isLoading={isLoading} />
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Estadísticas */}
+        {/* Estadísticas - EN LA PARTE SUPERIOR */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardHeader>
@@ -445,6 +412,42 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
+              <div>
+                <CardTitle>{t("user_management")}</CardTitle>
+                <CardDescription>
+                  {t("user_management_description")}
+                </CardDescription>
+              </div>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full sm:w-auto">
+                    {t("create_user")}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>{t("create_new_user")}</DialogTitle>
+                    <DialogDescription>
+                      {t("create_user_description")}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <CreateUserForm onUserCreated={handleUserCreated} />
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {error ? (
+              <div className="text-red-500">{error}</div>
+            ) : (
+              <DataTable key={tableKey} columns={columns} data={users} isLoading={isLoading} />
+            )}
+          </CardContent>
+        </Card>
       </div>
     </>
   );

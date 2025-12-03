@@ -8,6 +8,9 @@ import enNavigation from './locales/en/navigation.json';
 import ptNavigation from './locales/pt/navigation.json';
 
 // Importar todos los namespaces
+import esProductosServicios from './locales/es/productos_servicios.json';
+import enProductosServicios from './locales/en/productos_servicios.json';
+import ptProductosServicios from './locales/pt/productos_servicios.json';
 import esCommon from './locales/es/common.json';
 import enCommon from './locales/en/common.json'; 
 import ptCommon from './locales/pt/common.json';
@@ -23,9 +26,12 @@ import ptClientes from './locales/pt/clientes.json';
 import esPedidosServicio from './locales/es/pedidos-servicio.json';
 import enPedidosServicio from './locales/en/pedidos-servicio.json';
 import ptPedidosServicio from './locales/pt/pedidos-servicio.json';
+import esInstaladores from './locales/es/instaladores.json';
+import enInstaladores from './locales/en/instaladores.json';
+import ptInstaladores from './locales/pt/instaladores.json';
 
 // Definición de namespaces disponibles
-export const availableNamespaces = ["common", "login", "dashboard", "navigation", "clientes", "pedidos_servicio"] as const;
+export const availableNamespaces = ["common", "login", "dashboard", "navigation", "clientes", "pedidos_servicio", "instaladores", "productos_servicios"] as const;
 export type AvailableNamespaces = typeof availableNamespaces[number];
 
 // Definición de idiomas disponibles
@@ -43,7 +49,9 @@ i18n
         login: esLogin,
         dashboard: esDashboard,
         clientes: esClientes,
-        pedidos_servicio: esPedidosServicio
+        pedidos_servicio: esPedidosServicio,
+        instaladores: esInstaladores,
+        productos_servicios: esProductosServicios
       },
       en: {
         navigation: enNavigation,
@@ -51,7 +59,9 @@ i18n
         login: enLogin,
         dashboard: enDashboard,
         clientes: enClientes,
-        pedidos_servicio: enPedidosServicio
+        pedidos_servicio: enPedidosServicio,
+        instaladores: enInstaladores,
+        productos_servicios: enProductosServicios
       },
       pt: {
         navigation: ptNavigation,
@@ -59,7 +69,9 @@ i18n
         login: ptLogin,
         dashboard: ptDashboard,
         clientes: ptClientes,
-        pedidos_servicio: ptPedidosServicio
+        pedidos_servicio: ptPedidosServicio,
+        instaladores: ptInstaladores,
+        productos_servicios: ptProductosServicios
       }
     },
     ns: availableNamespaces,

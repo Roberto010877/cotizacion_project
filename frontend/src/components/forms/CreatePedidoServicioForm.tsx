@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,21 +17,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppTranslation } from '@/i18n/hooks';
+import {apiClient} from '@/lib/apiClient';
+import useCurrentUser from '@/hooks/useCurrentUser';
 
-interface Item {
-  id: string;
-  ambiente: string;
-  modelo: string;
-  tejido: string;
-  largura: string;
-  altura: string;
-  cantidad_piezas: string;
-  posicion_tejido: string;
-  lado_comando: string;
-  accionamiento: string;
-  observaciones: string;
-}
-
+// --- Interfaces de Datos ---
 interface ClienteData {
   id: number;
   nombre: string;
@@ -37,11 +29,76 @@ interface ClienteData {
   email?: string;
 }
 
+interface Instalador {
+  id: number;
+  nombre: string;
+  apellido: string;
+  email?: string;
+}
+
+// --- Esquema de Validación Zod ---
+// Definimos el esquema base de Item para reuso y tipado
+const itemSchema = (t: any) => z.object({
+  // Nota: Dejamos el 'id' fuera del esquema principal de Zod ya que es un campo temporal para el envío/manejo de errores,
+  // pero lo usaremos en el tipo SubmissionValues para mayor claridad.
+  ambiente: z.string().min(1, t('pedidos_servicio:error_environment_required')),
+  modelo: z.string().min(1, t('pedidos_servicio:error_model_required')),
+  tejido: z.string().min(1, t('pedidos_servicio:error_fabric_required')),
+  // z.coerce.number() convierte el string del input a número automáticamente
+  largura: z.coerce.number()
+    .positive(t('pedidos_servicio:error_width_required') || "Debe ser mayor a 0"),
+  altura: z.coerce.number()
+    .positive(t('pedidos_servicio:error_height_required') || "Debe ser mayor a 0"),
+  cantidad_piezas: z.coerce.number()
+    .int()
+    .min(1, t('pedidos_servicio:min_one_item_error') || "Mínimo 1 pieza"),
+  posicion_tejido: z.string().min(1, t('pedidos_servicio:error_fabric_position_required')),
+  lado_comando: z.string().min(1, t('pedidos_servicio:error_command_side_required')),
+  accionamiento: z.string().min(1, t('pedidos_servicio:error_actuation_required')),
+  observaciones: z.string().optional(),
+});
+
+const createPedidoSchema = (t: any) => z.object({
+  cliente: z.string().min(1, t('pedidos_servicio:error_client_required')),
+  solicitante: z.string().optional(),
+  supervisor: z.string().optional(),
+  fabricador_id: z.string().min(1, t('pedidos_servicio:error_fabricador_required')),
+  instalador_id: z.string().min(1, t('pedidos_servicio:error_instalador_required')),
+  fecha_inicio: z.string().optional().refine((val) => {
+    if (!val) return true;
+    const today = new Date().toISOString().split('T')[0];
+    return val >= today;
+  }, { message: t('pedidos_servicio:error_start_date_past') }),
+  fecha_fin: z.string().optional(),
+  observaciones: z.string().optional(),
+  items: z.array(itemSchema(t)).min(1, t('pedidos_servicio:error_min_one_item')),
+}).refine((data) => {
+  // Validación cruzada: Fecha fin >= Fecha inicio
+  if (data.fecha_inicio && data.fecha_fin) {
+    return data.fecha_fin >= data.fecha_inicio;
+  }
+  return true;
+}, {
+  message: t('pedidos_servicio:error_end_date_before_start'),
+  path: ["fecha_fin"], // El error aparecerá en este campo
+});
+
+// Inferir el tipo de TypeScript desde el esquema
+type FormValues = z.infer<ReturnType<typeof createPedidoSchema>>;
+
+// Definir el tipo de datos que realmente se envía (incluyendo el ID temporal)
+type SubmissionItem = FormValues['items'][number] & { id: string };
+type SubmissionValues = Omit<FormValues, 'items'> & { items: SubmissionItem[] };
+
+
 interface CreatePedidoServicioFormProps {
   clientes: ClienteData[];
   isLoading?: boolean;
-  onSubmit?: (data: any) => void;
+  // Usamos 'any' en el onSubmit para no complicar el tipo de dato de la prop externa,
+  // ya que le añadiremos el 'id' temporal al enviar.
+  onSubmit?: (data: SubmissionValues) => void;
   onCancel?: () => void;
+  externalErrors?: { [key: string]: string };
 }
 
 export default function CreatePedidoServicioForm({
@@ -49,115 +106,136 @@ export default function CreatePedidoServicioForm({
   isLoading = false,
   onSubmit,
   onCancel,
+  externalErrors,
 }: CreatePedidoServicioFormProps) {
   const { t } = useAppTranslation(['pedidos_servicio', 'common']);
-  const [formData, setFormData] = useState({
-    cliente: '',
-    solicitante: 'Sra. Rita',
-    supervisor: '',
-    fecha_inicio: '',
-    fecha_fin: '',
-    observaciones: '',
-  });
-  const [selectedClienteData, setSelectedClienteData] = useState<ClienteData | null>(null);
+  const currentUser = useCurrentUser();
+  const [fabricadores, setFabricadores] = useState<Instalador[]>([]);
+  const [instaladores, setInstaladores] = useState<Instalador[]>([]);
 
-  const [items, setItems] = useState<Item[]>([
-    {
-      id: '1',
-      ambiente: '',
-      modelo: '',
-      tejido: '',
-      largura: '',
-      altura: '',
-      cantidad_piezas: '1',
-      posicion_tejido: 'NORMAL',
-      lado_comando: 'IZQUIERDO',
-      accionamiento: 'MANUAL',
+  // 1. Configuración de React Hook Form + Zod
+  const form = useForm<FormValues>({
+    resolver: zodResolver(createPedidoSchema(t)) as any,
+    defaultValues: {
+      cliente: '',
+      solicitante: '',
+      supervisor: '',
+      fecha_inicio: '',
+      fecha_fin: '',
       observaciones: '',
-    },
-  ]);
-
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleFormSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    
-    // Si es el cliente, guardar sus datos completos
-    if (name === 'cliente') {
-      const clientData = clientes.find(c => c.id.toString() === value);
-      setSelectedClienteData(clientData || null);
-    }
-  };
-
-  const handleItemChange = (id: string, field: string, value: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, [field]: value } : item
-      )
-    );
-  };
-
-  const handleAddItem = () => {
-    const newId = Math.max(...items.map((i) => parseInt(i.id)), 0) + 1;
-    setItems((prev) => [
-      ...prev,
-      {
-        id: newId.toString(),
+      fabricador_id: '',
+      instalador_id: '',
+      items: [{
         ambiente: '',
         modelo: '',
         tejido: '',
-        largura: '',
-        altura: '',
-        cantidad_piezas: '1',
-        posicion_tejido: 'NORMAL',
-        lado_comando: 'IZQUIERDO',
-        accionamiento: 'MANUAL',
-        observaciones: '',
-      },
-    ]);
-  };
+        largura: 0, // Inicializar como número
+        altura: 0,
+        cantidad_piezas: 1,
+        posicion_tejido: '',
+        lado_comando: '',
+        accionamiento: '',
+        observaciones: ''
+      }]
+    },
+    mode: 'onChange'
+  });
 
-  const handleRemoveItem = (id: string) => {
-    if (items.length === 1) {
-      toast.error(t('pedidos_servicio:min_one_item_error'));
-      return;
+  const { register, control, handleSubmit, formState: { errors }, setValue, watch, setError } = form;
+  
+  // 2. Gestión optimizada de Arrays (Items)
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "items"
+  });
+
+  // Watch para mostrar datos del cliente seleccionado en tiempo real
+  const selectedClienteId = watch('cliente');
+  const selectedClienteData = clientes.find(c => c.id.toString() === selectedClienteId);
+
+  // 3. Manejo de Efectos (Cargas y Usuarios)
+  
+  // Cargar nombre del usuario
+  useEffect(() => {
+    if (currentUser) {
+      const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username || '';
+      setValue('solicitante', fullName);
     }
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, [currentUser, setValue]);
 
-  const handleSubmit = () => {
-    if (!formData.cliente) {
-      toast.error(t('pedidos_servicio:select_client_error'));
-      return;
+  // Cargar personal (Array vacío para ejecutar solo una vez al montar)
+  useEffect(() => {
+    const loadPersonal = async () => {
+      try {
+        const [fabricadoresRes, instaladoresRes] = await Promise.all([
+          apiClient.get('/api/v1/manufactura/?cargo=MANUFACTURADOR'),
+          apiClient.get('/api/v1/manufactura/?cargo=INSTALADOR'),
+        ]);
+        setFabricadores(fabricadoresRes.data.results || []);
+        setInstaladores(instaladoresRes.data.results || []);
+      } catch (error) {
+        console.error('Error cargando personal:', error);
+        toast.error(t('common:error_loading') || 'Error al cargar personal');
+      }
+    };
+    loadPersonal();
+  }, []);
+
+  // AJUSTE CRÍTICO 1: Manejo de errores externos del backend con mapeo de claves de array
+  useEffect(() => {
+    if (externalErrors) {
+      Object.entries(externalErrors).forEach(([key, message]) => {
+        // Mapear errores de array: ej. "cantidad_piezas-0" -> "items.0.cantidad_piezas"
+        const match = key.match(/^(.+)-(\d+)$/);
+
+        if (match) {
+          const [, fieldKey, indexStr] = match;
+          const index = parseInt(indexStr, 10);
+          
+          // Validar que el índice exista en el array de items actual
+          if (index >= 0 && index < fields.length) {
+            // Construir la clave de error de RHF
+            const rhfKey = `items.${index}.${fieldKey}` as keyof FormValues;
+            setError(rhfKey, { type: 'manual', message });
+          }
+        } else {
+          // Errores de campos a nivel general
+          setError(key as keyof FormValues, { type: 'manual', message });
+        }
+      });
+      
+      // Mostrar toast si se encontraron errores
+      if (Object.keys(externalErrors).length > 0) {
+          toast.error(t('pedidos_servicio:validation_errors'));
+      }
     }
+  }, [externalErrors, setError, t, fields]); // Se añade 'fields' a las dependencias
 
-    const hasEmptyItems = items.some(
-      (item) =>
-        !item.ambiente ||
-        !item.modelo ||
-        !item.tejido ||
-        !item.largura ||
-        !item.altura
-    );
-
-    if (hasEmptyItems) {
-      toast.error(t('pedidos_servicio:fill_required_fields_error'));
-      return;
-    }
+  // 4. Manejo del Envío
+  // AJUSTE CRÍTICO 2: Añadir ID temporal antes de enviar al backend
+  const onValidSubmit = (data: FormValues) => {
+    // Agregar IDs temporales a los items para que el backend pueda devolver un error
+    // mapeable (ej. "cantidad_piezas-0")
+    const dataWithIds: SubmissionValues = {
+      ...data,
+      items: data.items.map((item, index) => ({
+        ...item,
+        // Usamos el índice como ID temporal
+        id: String(index),
+      })),
+    } as SubmissionValues; // Casteamos al tipo de SubmissionValues
 
     if (onSubmit) {
-      onSubmit({
-        ...formData,
-        items,
-      });
+      onSubmit(dataWithIds);
     }
+  };
+
+  const onInvalidSubmit = () => {
+    toast.error(t('pedidos_servicio:validation_errors_check_fields') || "Revise los campos marcados en rojo");
   };
 
   return (
-    <div className="space-y-6">
+    <form onSubmit={handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-6">
       {/* Datos principales del pedido */}
       <Card>
         <CardHeader>
@@ -165,108 +243,150 @@ export default function CreatePedidoServicioForm({
           <CardDescription>{t('pedidos_servicio:basic_data')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Cliente y su información */}
+          
+          {/* Cliente */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="cliente">{t('common:client')} *</Label>
-              <Select value={formData.cliente} onValueChange={(value) => handleFormSelectChange('cliente', value)}>
-                <SelectTrigger id="cliente">
-                  <SelectValue placeholder={t('pedidos_servicio:select_client')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id.toString()}>
-                      {cliente.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="cliente"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger className={errors.cliente ? 'border-red-500' : ''}>
+                      <SelectValue placeholder={t('pedidos_servicio:select_client')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientes.map((cliente) => (
+                        <SelectItem key={cliente.id} value={cliente.id.toString()}>
+                          {cliente.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.cliente && <p className="text-sm text-red-600">{errors.cliente.message}</p>}
             </div>
 
+            {/* Datos ReadOnly del Cliente */}
             <div className="space-y-2">
               <Label>{t('pedidos_servicio:client_phone')}</Label>
-              <div className="flex items-center justify-start h-10 px-3 rounded-md border border-input bg-background text-sm">
-                {selectedClienteData?.telefono ? selectedClienteData.telefono : t('pedidos_servicio:no_phone')}
+              <div className="flex items-center px-3 h-10 border rounded-md bg-muted/50 text-sm">
+                {selectedClienteData?.telefono || t('pedidos_servicio:no_phone')}
               </div>
             </div>
-
             <div className="space-y-2">
               <Label>{t('pedidos_servicio:client_contact')}</Label>
-              <div className="flex items-center justify-start h-10 px-3 rounded-md border border-input bg-background text-sm">
-                {selectedClienteData?.email ? selectedClienteData.email : t('pedidos_servicio:no_contact')}
+              <div className="flex items-center px-3 h-10 border rounded-md bg-muted/50 text-sm">
+                {selectedClienteData?.email || t('pedidos_servicio:no_contact')}
               </div>
             </div>
           </div>
 
-          {/* Dirección completa */}
           {selectedClienteData?.direccion && (
             <div className="space-y-2">
               <Label>{t('pedidos_servicio:client_address')}</Label>
-              <div className="flex items-center justify-start min-h-10 px-3 rounded-md border border-input bg-background text-sm">
+              <div className="flex items-center px-3 min-h-10 border rounded-md bg-muted/50 text-sm">
                 {selectedClienteData.direccion}
               </div>
             </div>
           )}
 
-          {/* Solicitante y Supervisor en la misma fila */}
+          {/* Fabricador e Instalador */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fabricador *</Label>
+              <Controller
+                name="fabricador_id"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger className={errors.fabricador_id ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Selecciona un Fabricador" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fabricadores.map((fab) => (
+                        <SelectItem key={fab.id} value={fab.id.toString()}>
+                          {fab.nombre} {fab.apellido}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.fabricador_id && <p className="text-sm text-red-600">{errors.fabricador_id.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Instalador *</Label>
+              <Controller
+                name="instalador_id"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger className={errors.instalador_id ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Selecciona un Instalador" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {instaladores.map((inst) => (
+                        <SelectItem key={inst.id} value={inst.id.toString()}>
+                          {inst.nombre} {inst.apellido}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.instalador_id && <p className="text-sm text-red-600">{errors.instalador_id.message}</p>}
+            </div>
+          </div>
+
+          {/* Solicitante y Supervisor */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="solicitante">{t('pedidos_servicio:requester')}</Label>
               <Input
-                id="solicitante"
-                name="solicitante"
-                value={formData.solicitante}
-                onChange={handleFormChange}
+                {...register('solicitante')}
                 placeholder={t('pedidos_servicio:requester_default')}
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="supervisor">{t('pedidos_servicio:supervisor')}</Label>
               <Input
-                id="supervisor"
-                name="supervisor"
-                value={formData.supervisor}
-                onChange={handleFormChange}
+                {...register('supervisor')}
                 placeholder={t('pedidos_servicio:supervisor_placeholder')}
               />
             </div>
           </div>
 
-          {/* Fila: Fecha de Inicio y Fecha de Fin */}
+          {/* Fechas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fecha_inicio">{t('pedidos_servicio:start_date_label')}</Label>
               <Input
-                id="fecha_inicio"
-                name="fecha_inicio"
                 type="date"
-                value={formData.fecha_inicio}
-                onChange={handleFormChange}
-                placeholder={t('pedidos_servicio:start_date_placeholder')}
+                min={new Date().toISOString().split('T')[0]}
+                className={errors.fecha_inicio ? 'border-red-500' : ''}
+                {...register('fecha_inicio')}
               />
+              {errors.fecha_inicio && <p className="text-sm text-red-600">{errors.fecha_inicio.message}</p>}
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="fecha_fin">{t('pedidos_servicio:end_date_label')}</Label>
               <Input
-                id="fecha_fin"
-                name="fecha_fin"
                 type="date"
-                value={formData.fecha_fin}
-                onChange={handleFormChange}
-                placeholder={t('pedidos_servicio:end_date_placeholder')}
+                className={errors.fecha_fin ? 'border-red-500' : ''}
+                {...register('fecha_fin')}
               />
+              {errors.fecha_fin && <p className="text-sm text-red-600">{errors.fecha_fin.message}</p>}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="observaciones">{t('pedidos_servicio:general_observations')}</Label>
             <Textarea
-              id="observaciones"
-              name="observaciones"
-              value={formData.observaciones}
-              onChange={handleFormChange}
+              {...register('observaciones')}
               placeholder={t('pedidos_servicio:order_notes')}
               rows={3}
             />
@@ -274,26 +394,34 @@ export default function CreatePedidoServicioForm({
         </CardContent>
       </Card>
 
-      {/* Items del pedido */}
+      {/* Items del pedido (Dinámicos) */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>{t('pedidos_servicio:items_section')}</CardTitle>
             <CardDescription>{t('pedidos_servicio:items_description')}</CardDescription>
           </div>
-          <Button onClick={handleAddItem} variant="outline" size="sm">
+          <Button 
+            type="button" // Importante: type button para que no envíe el form
+            onClick={() => append({
+              ambiente: '', modelo: '', tejido: '', largura: 0, altura: 0, 
+              cantidad_piezas: 1, posicion_tejido: '', lado_comando: '', accionamiento: '', observaciones: ''
+            })} 
+            variant="outline" size="sm"
+          >
             <Plus className="h-4 w-4 mr-2" />
             {t('pedidos_servicio:add_item')}
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {items.map((item, index) => (
-            <div key={item.id} className="border rounded-lg p-4 space-y-4 relative">
-              <div className="flex justify-between items-center mb-4">
+          {fields.map((field, index) => (
+            <div key={field.id} className="border rounded-lg p-4 space-y-4 relative bg-card">
+              <div className="flex justify-between items-center mb-2">
                 <h4 className="font-semibold text-sm">{t('pedidos_servicio:item')} {index + 1}</h4>
-                {items.length > 1 && (
+                {fields.length > 1 && (
                   <Button
-                    onClick={() => handleRemoveItem(item.id)}
+                    type="button"
+                    onClick={() => remove(index)}
                     variant="ghost"
                     size="sm"
                     className="text-red-500 hover:bg-red-50"
@@ -304,133 +432,169 @@ export default function CreatePedidoServicioForm({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Ambiente */}
                 <div className="space-y-2">
-                  <Label htmlFor={`ambiente-${item.id}`}>{t('pedidos_servicio:environment')} *</Label>
+                  <Label>
+                    {t('pedidos_servicio:environment')} *
+                  </Label>
                   <Input
-                    id={`ambiente-${item.id}`}
-                    value={item.ambiente}
-                    onChange={(e) => handleItemChange(item.id, 'ambiente', e.target.value)}
+                    {...register(`items.${index}.ambiente`)}
                     placeholder={t('pedidos_servicio:environment_placeholder')}
+                    className={errors.items?.[index]?.ambiente ? 'border-red-500' : ''}
                   />
+                  {errors.items?.[index]?.ambiente && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.ambiente?.message}</p>
+                  }
                 </div>
 
+                {/* Modelo */}
                 <div className="space-y-2">
-                  <Label htmlFor={`modelo-${item.id}`}>{t('pedidos_servicio:model')} *</Label>
+                  <Label>{t('pedidos_servicio:model')} *</Label>
                   <Input
-                    id={`modelo-${item.id}`}
-                    value={item.modelo}
-                    onChange={(e) => handleItemChange(item.id, 'modelo', e.target.value)}
+                    {...register(`items.${index}.modelo`)}
                     placeholder={t('pedidos_servicio:model_placeholder')}
+                    className={errors.items?.[index]?.modelo ? 'border-red-500' : ''}
                   />
+                  {errors.items?.[index]?.modelo && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.modelo?.message}</p>
+                  }
                 </div>
 
+                {/* Tejido */}
                 <div className="space-y-2">
-                  <Label htmlFor={`tejido-${item.id}`}>{t('pedidos_servicio:fabric')} *</Label>
+                  <Label>{t('pedidos_servicio:fabric')} *</Label>
                   <Input
-                    id={`tejido-${item.id}`}
-                    value={item.tejido}
-                    onChange={(e) => handleItemChange(item.id, 'tejido', e.target.value)}
+                    {...register(`items.${index}.tejido`)}
                     placeholder={t('pedidos_servicio:fabric_placeholder')}
+                    className={errors.items?.[index]?.tejido ? 'border-red-500' : ''}
                   />
+                  {errors.items?.[index]?.tejido && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.tejido?.message}</p>
+                  }
                 </div>
 
+                {/* Cantidad */}
                 <div className="space-y-2">
-                  <Label htmlFor={`cantidad-${item.id}`}>{t('pedidos_servicio:quantity')}</Label>
+                  <Label>{t('pedidos_servicio:quantity')} *</Label>
                   <Input
-                    id={`cantidad-${item.id}`}
                     type="number"
-                    value={item.cantidad_piezas}
-                    onChange={(e) => handleItemChange(item.id, 'cantidad_piezas', e.target.value)}
+                    min="1"
                     placeholder="1"
+                    {...register(`items.${index}.cantidad_piezas`)}
+                    className={errors.items?.[index]?.cantidad_piezas ? 'border-red-500' : ''}
                   />
+                  {errors.items?.[index]?.cantidad_piezas && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.cantidad_piezas?.message}</p>
+                  }
                 </div>
               </div>
 
-              {/* Fila: Largura y Altura */}
+              {/* Medidas */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor={`largura-${item.id}`}>{t('pedidos_servicio:width')} *</Label>
+                  <Label>{t('pedidos_servicio:width')} *</Label>
                   <Input
-                    id={`largura-${item.id}`}
                     type="number"
                     step="0.01"
-                    value={item.largura}
-                    onChange={(e) => handleItemChange(item.id, 'largura', e.target.value)}
+                    min="0.01"
                     placeholder={t('pedidos_servicio:width_placeholder')}
+                    {...register(`items.${index}.largura`)}
+                    className={errors.items?.[index]?.largura ? 'border-red-500' : ''}
                   />
+                  {errors.items?.[index]?.largura && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.largura?.message}</p>
+                  }
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor={`altura-${item.id}`}>{t('pedidos_servicio:height')} *</Label>
+                  <Label>{t('pedidos_servicio:height')} *</Label>
                   <Input
-                    id={`altura-${item.id}`}
                     type="number"
                     step="0.01"
-                    value={item.altura}
-                    onChange={(e) => handleItemChange(item.id, 'altura', e.target.value)}
+                    min="0.01"
                     placeholder={t('pedidos_servicio:height_placeholder')}
+                    {...register(`items.${index}.altura`)}
+                    className={errors.items?.[index]?.altura ? 'border-red-500' : ''}
                   />
+                  {errors.items?.[index]?.altura && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.altura?.message}</p>
+                  }
                 </div>
               </div>
 
-              {/* Fila: Posición del Tejido, Lado del Comando y Accionamiento */}
+              {/* Selects de configuración del Item */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor={`posicion-${item.id}`}>{t('pedidos_servicio:fabric_position')}</Label>
-                  <Select
-                    value={item.posicion_tejido}
-                    onValueChange={(value) => handleItemChange(item.id, 'posicion_tejido', value)}
-                  >
-                    <SelectTrigger id={`posicion-${item.id}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NORMAL">{t('pedidos_servicio:normal')}</SelectItem>
-                      <SelectItem value="INVERSO">{t('pedidos_servicio:inverse')}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>{t('pedidos_servicio:fabric_position')} *</Label>
+                  <Controller
+                    name={`items.${index}.posicion_tejido`}
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className={errors.items?.[index]?.posicion_tejido ? 'border-red-500' : ''}>
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NORMAL">{t('pedidos_servicio:normal')}</SelectItem>
+                          <SelectItem value="INVERSO">{t('pedidos_servicio:inverse')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.items?.[index]?.posicion_tejido && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.posicion_tejido?.message}</p>
+                  }
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor={`lado-${item.id}`}>{t('pedidos_servicio:command_side')}</Label>
-                  <Select
-                    value={item.lado_comando}
-                    onValueChange={(value) => handleItemChange(item.id, 'lado_comando', value)}
-                  >
-                    <SelectTrigger id={`lado-${item.id}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="IZQUIERDO">{t('pedidos_servicio:left')}</SelectItem>
-                      <SelectItem value="DERECHO">{t('pedidos_servicio:right')}</SelectItem>
-                      <SelectItem value="AMBOS">{t('pedidos_servicio:both')}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>{t('pedidos_servicio:command_side')} *</Label>
+                  <Controller
+                    name={`items.${index}.lado_comando`}
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className={errors.items?.[index]?.lado_comando ? 'border-red-500' : ''}>
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="IZQUIERDO">{t('pedidos_servicio:left')}</SelectItem>
+                          <SelectItem value="DERECHO">{t('pedidos_servicio:right')}</SelectItem>
+                          <SelectItem value="AMBOS">{t('pedidos_servicio:both')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.items?.[index]?.lado_comando && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.lado_comando?.message}</p>
+                  }
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor={`acionamiento-${item.id}`}>{t('pedidos_servicio:actuation')}</Label>
-                  <Select
-                    value={item.accionamiento}
-                    onValueChange={(value) => handleItemChange(item.id, 'accionamiento', value)}
-                  >
-                    <SelectTrigger id={`acionamiento-${item.id}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MANUAL">{t('pedidos_servicio:manual')}</SelectItem>
-                      <SelectItem value="MOTORIZADO">{t('pedidos_servicio:motorized')}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>{t('pedidos_servicio:actuation')} *</Label>
+                  <Controller
+                    name={`items.${index}.accionamiento`}
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className={errors.items?.[index]?.accionamiento ? 'border-red-500' : ''}>
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MANUAL">{t('pedidos_servicio:manual')}</SelectItem>
+                          <SelectItem value="MOTORIZADO">{t('pedidos_servicio:motorized')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.items?.[index]?.accionamiento && 
+                    <p className="text-xs text-red-600">{errors.items[index]?.accionamiento?.message}</p>
+                  }
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor={`observaciones-${item.id}`}>{t('pedidos_servicio:item_observations')}</Label>
+                <Label>{t('pedidos_servicio:item_observations')}</Label>
                 <Textarea
-                  id={`observaciones-${item.id}`}
-                  value={item.observaciones}
-                  onChange={(e) => handleItemChange(item.id, 'observaciones', e.target.value)}
+                  {...register(`items.${index}.observaciones`)}
                   placeholder={t('pedidos_servicio:item_observations_placeholder')}
                   rows={2}
                 />
@@ -442,13 +606,13 @@ export default function CreatePedidoServicioForm({
 
       {/* Botones de acción */}
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+        <Button variant="outline" type="button" onClick={onCancel} disabled={isLoading}>
           {t('common:cancel')}
         </Button>
-        <Button onClick={handleSubmit} disabled={isLoading}>
+        <Button type="submit" disabled={isLoading}>
           {isLoading ? t('pedidos_servicio:creating') : t('pedidos_servicio:create_btn')}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }

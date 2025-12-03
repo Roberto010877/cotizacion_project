@@ -18,6 +18,7 @@
   "status": "Estado",
   "quotes_panel": "Panel de Cotizaciones",
   "quotes_description": "Visualiza y gestiona todas tus cotizaciones",
-  "create_quote": "Crear Cotización"
-  
+  "create_quote": "Crear Cotización",
+  "role_admin": "Administrador",
+  "role_comercial": "Comercial"
 }

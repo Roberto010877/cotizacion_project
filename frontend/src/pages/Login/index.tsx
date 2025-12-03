@@ -1,8 +1,9 @@
 import { useForm } from "react-hook-form";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from "@/lib/axios";
-import { setCredentials } from "../../redux/authSlice";
+// Asegúrate de que apiClient.ts exporte { apiClient }
+import { apiClient } from "@/lib/apiClient"; 
+import { setCredentials } from "@/redux/authSlice"; // Ajusté la ruta relativa a @ alias por consistencia
 import toast, { Toaster } from "react-hot-toast";
 import { useAppTranslation } from "@/i18n/hooks";
 import LanguageSelector from "@/components/LanguageSelector";
@@ -18,16 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-
-
 // Define the shape of the form data
 interface LoginFormInputs {
   username: string;
   password: string;
 }
-
-
-
 
 const LoginPage = () => {
   const { register, handleSubmit } = useForm<LoginFormInputs>();
@@ -36,36 +32,45 @@ const LoginPage = () => {
   const { t } = useAppTranslation(['login', 'common']);
 
   const onSubmit = async (data: LoginFormInputs) => {
-    const loadingToast = toast.loading(t('login:loading')); // ← AGREGAR login:
+    const loadingToast = toast.loading(t('login:loading'));
+
     try {
       // 1. Get Tokens
-      const tokenResponse = await axiosInstance.post("/api/token/", data);
+      // CORRECCIÓN: Usamos "token/" relativo. El apiClient agrega /api/v1/
+      const tokenResponse = await apiClient.post("token/", data);
+      
       const { access, refresh } = tokenResponse.data;
+      
+      // Guardamos tokens inmediatamente para que el interceptor los vea
       localStorage.setItem('access_token', access);
       if (refresh) {
         localStorage.setItem('refresh_token', refresh);
       }
 
       // 2. Get User Info
-      const userResponse = await axiosInstance.get("/api/v1/users/me/", {
-        headers: {
-          Authorization: `Bearer ${access}`,
-        },
-      });
+      // CORRECCIÓN: Usamos "users/me/" relativo y quitamos los headers manuales.
+      // El interceptor de apiClient ya inyecta el token que acabamos de guardar.
+      const userResponse = await apiClient.get("users/me/");
       const user = userResponse.data;
 
-      // 3. Set credentials
+      // 3. Set credentials in Redux
       dispatch(setCredentials({ user, token: access }));
 
       // 4. Set last activity timestamp
       localStorage.setItem('last_activity', Date.now().toString());
       
       toast.dismiss(loadingToast);
+      toast.success(t('login:success') || "Welcome!"); // Feedback visual opcional
       navigate("/");
-    } catch (error) {
+      
+    } catch (error: any) {
       toast.dismiss(loadingToast);
-      toast.error(t('login:error')); // ← AGREGAR login:
+      toast.error(t('login:error'));
       console.error("Login failed:", error);
+      
+      // Limpieza por seguridad si falla a mitad de camino
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
     }
   };
 
@@ -76,9 +81,9 @@ const LoginPage = () => {
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-2xl">{t('login:title')}</CardTitle> {/* ← AGREGAR login: */}
+              <CardTitle className="text-2xl">{t('login:title')}</CardTitle>
               <CardDescription>
-                {t('login:description')} {/* ← AGREGAR login: */}
+                {t('login:description')}
               </CardDescription>
             </div>
             <LanguageSelector />
@@ -87,7 +92,7 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="username">{t('login:username_label')}</Label> {/* ← AGREGAR login: */}
+              <Label htmlFor="username">{t('login:username_label')}</Label>
               <Input
                 id="username"
                 type="text"
@@ -96,7 +101,7 @@ const LoginPage = () => {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">{t('login:password_label')}</Label> {/* ← AGREGAR login: */}
+              <Label htmlFor="password">{t('login:password_label')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -107,7 +112,7 @@ const LoginPage = () => {
           </CardContent>
           <div className="p-6 pt-0">
             <Button type="submit" className="w-full">
-              {t('login:button')} {/* ← AGREGAR login: */}
+              {t('login:button')}
             </Button>
           </div>
         </form>

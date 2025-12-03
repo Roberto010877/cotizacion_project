@@ -17,7 +17,7 @@
   "role": "Rol",
   "select_role": "Seleccionar rol",
   "role_admin": "Administrador",
-  "role_collaborator": "Colaborador",
+  "role_comercial": "Comercial",
   "cancel": "Cancelar",
   "creating_user": "Creando usuario...",
   "user_created_successfully": "Usuario creado exitosamente",

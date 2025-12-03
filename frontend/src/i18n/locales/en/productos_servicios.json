@@ -1,0 +1,14 @@
+{
+    "catalog_title": "Product and Service Catalog",
+    "manage_products": "Manage the company's master list of products and services.",
+    "product_type": "Product Type",
+    "unit": "Unit of Measure",
+    
+    "CORTINA": "Curtain (Textile)",
+    "PERSIANA": "Blind (Mechanical)",
+    "TOLDO": "Awning (Exterior)",
+    "MOTOR": "Motor / Automation",
+    "RIEL": "Track / Rail",
+    "SERVICIO": "Service (Labor)",
+    "OTRO": "Other"
+}

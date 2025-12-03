@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import type { PaginatedResponse } from './useClientes';
 
 export interface ItemPedidoServicio {
@@ -16,12 +16,23 @@ export interface ItemPedidoServicio {
   observaciones?: string;
 }
 
+export interface ClienteInfo {
+  id: number;
+  nombre: string;
+  numero_documento?: string;
+  email?: string;
+  telefono?: string;
+  telefono_contacto?: string;
+  direccion?: string;
+}
+
 export interface PedidoServicio {
   id: number;
   numero_pedido: string;
-  cliente: number;
+  cliente: number | ClienteInfo;
   cliente_nombre?: string;
   solicitante: string;
+  solicitante_nombre?: string;
   colaborador?: number;
   colaborador_nombre?: string;
   supervisor?: string;
@@ -32,6 +43,10 @@ export interface PedidoServicio {
   observaciones?: string;
   items?: ItemPedidoServicio[];
   total_items?: number;
+  fabricador_nombre?: string;
+  instalador_nombre?: string;
+  fabricador_id?: number;
+  instalador_id?: number;
   created_at: string;
   updated_at: string;
 }
@@ -42,26 +57,64 @@ interface UsePaginatedPedidosServicioOptions {
   searchFilters?: Record<string, any>;
 }
 
+// Función helper para crear una clave estable a partir de un objeto
+const createStableKey = (obj: Record<string, any>): string => {
+  if (!obj || Object.keys(obj).length === 0) return 'empty';
+  
+  // Ordenar las claves y crear un string estable
+  const sortedKeys = Object.keys(obj).sort();
+  const stableObj: Record<string, any> = {};
+  
+  sortedKeys.forEach(key => {
+    stableObj[key] = obj[key];
+  });
+  
+  return JSON.stringify(stableObj);
+};
+
 export const usePaginatedPedidosServicio = (
   options: UsePaginatedPedidosServicioOptions = {}
 ) => {
   const { page = 1, pageSize = 25, searchFilters = {} } = options;
 
+  // Crear una clave estable para los filtros de búsqueda
+  const stableSearchKey = createStableKey(searchFilters);
+
   const query = useQuery<PaginatedResponse<PedidoServicio>, Error>({
-    queryKey: ['pedidos-servicio', { page, pageSize, ...searchFilters }],
-    queryFn: async () => {
+    queryKey: ['pedidos-servicio', page, pageSize, stableSearchKey],
+    queryFn: async ({ queryKey }) => {
+      // ✅ CORREGIDO: Extraer parámetros de queryKey para evitar closure issues
+      const [, currentPage, currentPageSize, searchKey] = queryKey as [string, number, number, string];
+      
+      // Verificar que hay token antes de hacer la solicitud
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // ✅ CORREGIDO: Reconstruir searchFilters desde la clave estable
+      const currentSearchFilters = searchKey === 'empty' ? {} : JSON.parse(searchKey);
+
       const params = {
-        page,
-        page_size: pageSize,
-        ...searchFilters,
+        page: currentPage,
+        page_size: currentPageSize,
+        ...currentSearchFilters,
       };
 
-      const response = await axiosInstance.get('/api/v1/pedidos-servicio/', {
-        params,
-      });
-      return response.data;
+      try {
+        const response = await apiClient.get('pedidos-servicio/', {
+          params,
+        });
+        return response.data;
+      } catch (error: any) {
+        console.error('Error fetching pedidos-servicio:', error.response?.status, error.response?.data);
+        throw error;
+      }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 1000 * 60 * 5, // 5 minutos
+    gcTime: 1000 * 60 * 10, // 10 minutos de cache
+    refetchInterval: false,
+    retry: 1,
   });
 
   return {

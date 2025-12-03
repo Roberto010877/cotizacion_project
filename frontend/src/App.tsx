@@ -18,134 +18,57 @@ import CotizacionesPage from "@/pages/Cotizaciones";
 import ClientesPage from "@/pages/Clientes";
 import ProveedoresPage from "@/pages/Proveedores";
 import OrdenesCompraPage from "@/pages/OrdenesCompra";
-import ProductosPage from "@/pages/Productos";
+import ProductosPage from "@/pages/ProductosServicios";
 import PedidosServicioPage from "@/pages/PedidosServicio";
+import MisTareasPage from "@/pages/MisDashboard/MisTareas";
+import InstaladoresPage from "@/pages/Instaladores";
 import LoginPage from "@/pages/Login";
 import SettingsPage from "@/pages/Settings";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
+import RoleProtectedRoute from "@/components/common/RoleProtectedRoute";
 import { logOut, setCredentials } from "@/redux/authSlice";
 import LanguageSelector from "@/components/LanguageSelector";
 import { useAppTranslation } from "@/i18n/hooks";
 import type { RootState } from "./redux/store";
 import { useAuthTimeout } from "./hooks/useAuthTimeout";
-import axiosInstance from "./lib/axios.new";
+import { apiClient } from '@/lib/apiClient'; 
+import { AdminDashboard, ComercialDashboard, FabricadorDashboard, InstaladorDashboard } from "@/pages/Dashboard";
 
-// Placeholder components for pages
+// Dashboard selector based on user role
 const Dashboard = () => {
-  const { t } = useAppTranslation(['navigation']);
-  const [pedidosPendientes, setPedidosPendientes] = useState<any[]>([]);
-  const [pedidosEnFabricacion, setPedidosEnFabricacion] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const user = useSelector((state: RootState) => state.auth.user);
+  
+  // Determinar el tipo de dashboard según el rol y cargo
+  if (!user) {
+    return <div>Cargando usuario...</div>;
+  }
 
-  useEffect(() => {
-    const fetchPedidos = async () => {
-      try {
-        // Obtener pedidos pendientes de instalar
-        const respPendientes = await axiosInstance.get('/api/v1/pedidos-servicio/?estado=LISTO_INSTALAR&page_size=5');
-        setPedidosPendientes(respPendientes.data.results || []);
+  // Admin siempre ve el dashboard administrativo
+  if (user.role === 'ADMIN') {
+    return <AdminDashboard />;
+  }
 
-        // Obtener pedidos en fabricación
-        const respFabricacion = await axiosInstance.get('/api/v1/pedidos-servicio/?estado=EN_FABRICACION&page_size=5');
-        setPedidosEnFabricacion(respFabricacion.data.results || []);
-      } catch (error) {
-        console.error('Error cargando pedidos:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Si el usuario tiene manufactura_cargo, mostrar dashboard específico
+  if (user.manufactura_cargo === 'MANUFACTURADOR') {
+    return <FabricadorDashboard />;
+  }
 
-    fetchPedidos();
-  }, []);
+  if (user.manufactura_cargo === 'INSTALADOR') {
+    return <InstaladorDashboard />;
+  }
 
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('navigation:dashboard')}</CardTitle>
-          <CardDescription>{t('navigation:dashboard_description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Panel Fabricación */}
-            <Card className="border-l-4 border-l-orange-500">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="text-2xl">⚙️</span>
-                  Fabricación
-                </CardTitle>
-                <CardDescription>Pedidos en proceso de fabricación</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="animate-pulse space-y-2">
-                    {[1, 2].map(i => <div key={i} className="h-12 bg-gray-200 rounded"></div>)}
-                  </div>
-                ) : pedidosEnFabricacion.length > 0 ? (
-                  <div className="space-y-3">
-                    {pedidosEnFabricacion.map((pedido: any) => (
-                      <div key={pedido.id} className="border rounded p-3 bg-orange-50">
-                        <div className="font-semibold text-sm">{pedido.numero_pedido}</div>
-                        <div className="text-xs text-gray-600">{pedido.cliente_nombre}</div>
-                        <div className="text-xs mt-1 text-orange-600 font-medium">
-                          {pedido.total_items || 0} items
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-4">
-                    <p className="text-sm">No hay pedidos en fabricación</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Panel Instalación */}
-            <Card className="border-l-4 border-l-green-500">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="text-2xl">🔧</span>
-                  Instalación
-                </CardTitle>
-                <CardDescription>Pedidos listos para instalar</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="animate-pulse space-y-2">
-                    {[1, 2].map(i => <div key={i} className="h-12 bg-gray-200 rounded"></div>)}
-                  </div>
-                ) : pedidosPendientes.length > 0 ? (
-                  <div className="space-y-3">
-                    {pedidosPendientes.map((pedido: any) => (
-                      <div key={pedido.id} className="border rounded p-3 bg-green-50">
-                        <div className="font-semibold text-sm">{pedido.numero_pedido}</div>
-                        <div className="text-xs text-gray-600">{pedido.cliente_nombre}</div>
-                        <div className="text-xs mt-1 text-green-600 font-medium">
-                          {pedido.total_items || 0} items
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-4">
-                    <p className="text-sm">No hay pedidos listos para instalar</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  // Por defecto, colaboradores ven su dashboard personal
+  return <ComercialDashboard />;
 };
 
-// NavLink component to avoid repeating classes
-const NavLink = ({ to, children }: { to: string, children: React.ReactNode }) => (
-  <Link to={to} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
-    {children}
-  </Link>
-);
+// NavLink component - Muestra todos los enlaces, las rutas verifican permisos
+const NavLink = ({ to, children }: { to: string, children: React.ReactNode }) => {
+  return (
+    <Link to={to} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+      {children}
+    </Link>
+  );
+};
 
 // UserMenu component
 // UserMenu component - Versión con mejor visibilidad
@@ -162,20 +85,59 @@ const UserMenu = () => {
     navigate('/login');
   };
 
+  // Obtener nombre completo del usuario
+  const fullName = user?.first_name && user?.last_name 
+    ? `${user.first_name} ${user.last_name}`
+    : user?.first_name || user?.username || 'Usuario';
+
+  // Obtener rol o grupo para mostrar
+  const getRoleLabel = (user?: any) => {
+    if (!user) return '';
+    
+    // Si tiene grupos, mostrar el primer grupo
+    if (user.groups && user.groups.length > 0) {
+      const group = user.groups[0];
+      // Capitalizar primera letra
+      return group.charAt(0).toUpperCase() + group.slice(1).toLowerCase();
+    }
+    
+    // Fallback al campo role
+    if (user.role) {
+      switch (user.role) {
+        case 'ADMIN':
+          return t('navigation:role_admin');
+        case 'COMERCIAL':
+          return t('navigation:role_comercial');
+        default:
+          return user.role;
+      }
+    }
+    
+    return '';
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center gap-2 p-2 rounded-full">
+        <Button variant="ghost" className="flex items-center gap-3 px-3 py-2 h-auto">
           <UserCircle className="h-6 w-6" />
-          <span className="text-sm hidden sm:block">{user?.first_name || 'Usuario'}</span>
+          <div className="hidden sm:flex flex-col items-start text-left space-y-0.5">
+            <span className="text-sm font-medium block">{fullName}</span>
+            <span className="text-[11px] text-muted-foreground block">
+              {getRoleLabel(user)}
+            </span>
+          </div>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-64" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.first_name || 'Usuario'}</p>
-            <p className="text-xs leading-none text-muted-foreground">
+          <div className="flex flex-col space-y-1.5">
+            <p className="text-sm font-medium">{fullName}</p>
+            <p className="text-xs text-muted-foreground">
               {user?.email}
+            </p>
+            <p className="text-xs text-muted-foreground pt-0.5">
+              {getRoleLabel(user)}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -192,8 +154,8 @@ const UserMenu = () => {
 // New Layout component
 const DashboardLayout = () => {
   const { t } = useAppTranslation(['navigation']);
-  useAuthTimeout(5); // Inicia el temporizador de inactividad (15 minutos)
-  const user = useSelector((state: RootState) => state.auth.user); // ← Agregar esta línea
+  useAuthTimeout(20); // Timeout de inactividad: 20 minutos
+  const user = useSelector((state: RootState) => state.auth.user);
 
   // DEBUG
   console.log('🔍 DashboardLayout - User:', user);
@@ -217,11 +179,13 @@ const DashboardLayout = () => {
           <CardContent className="flex-1">
             <nav className="flex flex-col gap-2">
               <NavLink to="/"><LayoutDashboard /><span>{t('navigation:dashboard')}</span></NavLink>
+              <NavLink to="/mis-tareas"><ClipboardList /><span>{t('pedidos_servicio:my_tasks')}</span></NavLink>
               <NavLink to="/cotizaciones"><ClipboardList /><span>{t('navigation:quotes')}</span></NavLink>
               <NavLink to="/pedidos-servicio"><ShoppingCart /><span>Pedidos de Servicio</span></NavLink>
               <NavLink to="/ordenes-compra"><ShoppingCart /><span>{t('navigation:purchase_orders')}</span></NavLink>
               <NavLink to="/proveedores"><Users /><span>{t('navigation:suppliers')}</span></NavLink>
               <NavLink to="/clientes"><Users /><span>{t('navigation:clients')}</span></NavLink>
+              <NavLink to="/instaladores"><Users /><span>Equipo de Trabajo</span></NavLink>
               <NavLink to="/settings"><Settings /><span>{t('navigation:settings')}</span></NavLink>
             </nav>
           </CardContent>
@@ -258,7 +222,7 @@ const useInitialAuth = () => {
       const storedToken = localStorage.getItem('access_token');
       if (storedToken && !token) {
         try {
-          const userResponse = await axiosInstance.get("/api/users/me/");
+          const userResponse = await apiClient.get("users/me/");
           dispatch(setCredentials({ user: userResponse.data, token: storedToken }));
         } catch (error) {
           console.error("Token validation failed, logging out.", error);
@@ -301,13 +265,15 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="cotizaciones" element={<CotizacionesPage />} />
-          <Route path="ordenes-compra" element={<OrdenesCompraPage />} />
-          <Route path="proveedores" element={<ProveedoresPage />} />
-          <Route path="clientes" element={<ClientesPage />} />
-          <Route path="productos" element={<ProductosPage />} />
-          <Route path="pedidos-servicio" element={<PedidosServicioPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="mis-tareas" element={<RoleProtectedRoute route="/mis-tareas"><MisTareasPage /></RoleProtectedRoute>} />
+          <Route path="cotizaciones" element={<RoleProtectedRoute route="/cotizaciones"><CotizacionesPage /></RoleProtectedRoute>} />
+          <Route path="ordenes-compra" element={<RoleProtectedRoute route="/ordenes-compra"><OrdenesCompraPage /></RoleProtectedRoute>} />
+          <Route path="proveedores" element={<RoleProtectedRoute route="/proveedores"><ProveedoresPage /></RoleProtectedRoute>} />
+          <Route path="clientes" element={<RoleProtectedRoute route="/clientes"><ClientesPage /></RoleProtectedRoute>} />
+          <Route path="productos" element={<RoleProtectedRoute route="/productos"><ProductosPage /></RoleProtectedRoute>} />
+          <Route path="pedidos-servicio" element={<RoleProtectedRoute route="/pedidos-servicio"><PedidosServicioPage /></RoleProtectedRoute>} />
+          <Route path="instaladores" element={<RoleProtectedRoute route="/instaladores"><InstaladoresPage /></RoleProtectedRoute>} />
+          <Route path="settings" element={<RoleProtectedRoute route="/settings"><SettingsPage /></RoleProtectedRoute>} />
         </Route>
         {/* Optional: Redirect any other path to login or dashboard */}
         <Route path="*" element={<Navigate to="/login" replace />} />

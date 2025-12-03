@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import type { PaginatedResponse } from './useClientes';
 
 export interface OrdenCompra {
@@ -33,7 +33,7 @@ export const usePaginatedOrdenes = (
         ...searchFilters,
       };
 
-      const response = await axiosInstance.get('/api/v1/ordenes-compra/', {
+      const response = await apiClient.get('ordenes-compra/', {
         params,
       });
       return response.data;

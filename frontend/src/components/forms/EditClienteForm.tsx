@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useAppTranslation } from '@/i18n/hooks';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -90,7 +90,7 @@ export const EditClienteForm: React.FC<EditClienteFormProps> = ({
         preferencias_contacto: data.preferencias_contacto,
       };
 
-      await axiosInstance.patch(`/api/v1/clientes/${cliente.id}/`, payload);
+      await apiClient.patch(`/api/v1/clientes/${cliente.id}/`, payload);
 
       toast.success(t('clientes:update_success') || 'Cliente actualizado exitosamente');
       reset();

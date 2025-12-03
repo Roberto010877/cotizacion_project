@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useAppTranslation } from '@/i18n/hooks';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -82,7 +82,7 @@ export const CreateClienteForm: React.FC<CreateClienteFormProps> = ({
         preferencias_contacto: data.preferencias_contacto,
       };
 
-      await axiosInstance.post('/api/v1/clientes/', payload);
+      await apiClient.post('/api/v1/clientes/', payload);
 
       toast.success(t('clientes:cliente_created_success') || 'Cliente creado exitosamente');
       reset();

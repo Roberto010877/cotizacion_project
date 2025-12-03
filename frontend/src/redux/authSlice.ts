@@ -9,6 +9,12 @@ interface User {
   email: string;
   username?: string;
   language?: string;
+  role?: 'ADMIN' | 'COMERCIAL';
+  groups?: string[]; // Grupos de Django
+  permissions?: string[]; // Permisos de Django en formato 'app_label.codename'
+  manufactura_id?: number | null;
+  manufactura_cargo?: 'MANUFACTURADOR' | 'INSTALADOR' | 'COMERCIAL' | null;
+  manufactura_nombre?: string | null;
   // Agrega otros campos que devuelva tu API
 }
 

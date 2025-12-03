@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useAppTranslation } from '@/i18n/hooks';
 import { updateLanguage } from '@/redux/authSlice';
 import type { RootState } from '@/redux/store'; 
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 
 export const useLanguageSync = () => {
   const { i18n } = useAppTranslation();
@@ -16,7 +16,7 @@ export const useLanguageSync = () => {
       
       if (user) {
         try {
-          await axiosInstance.patch("/api/users/me/language/", { 
+          await apiClient.patch("users/me/language/", { 
             language: lng 
           });
         } catch (error) {

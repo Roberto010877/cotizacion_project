@@ -35,5 +35,13 @@
   "previous_page": "Página anterior",
   "page": "Página",
   "next_page": "Página siguiente",
-  "last_page": "Última página"
+  "last_page": "Última página",
+  "accept": "Aceptar",
+  "reject": "Rechazar",
+  "back": "Volver",
+  "updating": "Actualizando",
+  "search": "Buscar",
+  "clear": "Limpiar",
+  "apply": "Aplicar",
+  "retry": "Reintentar"
 }

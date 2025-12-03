@@ -18,27 +18,69 @@ import { DataTable } from "@/components/common/DataTable";
 import Pagination from "@/components/common/Pagination";
 import InfiniteScroll from "@/components/common/InfiniteScroll";
 import CreatePedidoServicioForm from "@/components/forms/CreatePedidoServicioForm";
+import PedidoDetailModal from "@/components/modals/PedidoDetailModal";
+import EditPedidoServicioModal from "@/components/modals/EditPedidoServicioModal";
 import { useAppTranslation } from "@/i18n/hooks";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import usePagination from "@/hooks/usePagination";
 import usePaginatedPedidosServicio from "@/hooks/usePaginatedPedidosServicio";
+import usePedidosEstadisticas from "@/hooks/usePedidosEstadisticas";
+import useCurrentUser from "@/hooks/useCurrentUser";
 import type { PedidoServicio } from "@/hooks/usePaginatedPedidosServicio";
-import axiosInstance from "@/lib/axios.new";
+import { apiClient } from "@/lib/apiClient";
 import toast from "react-hot-toast";
+import { hasPermission } from "@/utils/permissions";
 
 const PedidosServicioPage = () => {
   const { t } = useAppTranslation(['navigation', 'common', 'pedidos_servicio']);
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const currentUser = useCurrentUser();
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedPedido, setSelectedPedido] = useState<PedidoServicio | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [clientes, setClientes] = useState<Array<{ id: number; nombre: string; direccion?: string; telefono?: string; email?: string }>>([]);
   const [isLoadingForm, setIsLoadingForm] = useState(false);
-  const [pedidosPorEstado, setPedidosPorEstado] = useState<Record<string, number>>({});
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [selectedEstado, setSelectedEstado] = useState<string | null>(null);
+
+  // Hook para estadísticas con auto-refresh
+  const { conteosPorEstado, refetch: refetchEstadisticas } = usePedidosEstadisticas();
+
+  // Verificar permisos
+  const canCreatePedido = hasPermission(currentUser, 'pedidos_servicio.add_pedidoservicio');
+  const canEditPedido = hasPermission(currentUser, 'pedidos_servicio.change_pedidoservicio');
+  // const canDeletePedido = hasPermission(currentUser, 'pedidos_servicio.delete_pedidoservicio');
+
+  // Manejar clic en botón crear
+  const handleCreateClick = () => {
+    if (!canCreatePedido) {
+      toast.error('No tiene permisos para crear pedidos');
+      return;
+    }
+    setFormErrors({}); // Limpiar errores previos
+    setIsCreating(true);
+  };
+
+  // Manejar clic en botón editar
+  const handleEditClick = (pedido: PedidoServicio) => {
+    if (!canEditPedido) {
+      toast.error('No tiene permisos para editar pedidos');
+      return;
+    }
+    if (pedido.estado === 'ACEPTADO') {
+      toast.error('Pedido aceptado, ya no puede hacer modificaciones');
+      return;
+    }
+    setSelectedPedido(pedido);
+    setIsEditModalOpen(true);
+  };
 
   // Cargar clientes para el formulario
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        const response = await axiosInstance.get('/api/v1/clientes/?page_size=1000');
+        const response = await apiClient.get('clientes/?page_size=1000');
         const clientesList = response.data.results.map((cliente: any) => ({
           id: cliente.id,
           nombre: cliente.nombre,
@@ -64,31 +106,45 @@ const PedidosServicioPage = () => {
   });
 
   // Datos paginados
-  const { data, isLoading } = usePaginatedPedidosServicio({
+  const { data, isLoading, refetch } = usePaginatedPedidosServicio({
     page: pagination.currentPage,
     pageSize: pagination.pageSize,
+    searchFilters: selectedEstado ? { estado: selectedEstado } : {},
   });
 
-  // Cargar estadísticas de pedidos por estado
+  // Refrescar datos cuando cambia la página o filtros
   useEffect(() => {
-    const fetchEstadisticas = async () => {
-      try {
-        const estados = ['ENVIADO', 'ACEPTADO', 'EN_FABRICACION', 'LISTO_INSTALAR', 'INSTALADO', 'COMPLETADO'];
-        const conteos: Record<string, number> = {};
-        
-        for (const estado of estados) {
-          const response = await axiosInstance.get(`/api/v1/pedidos-servicio/?estado=${estado}&page_size=1`);
-          conteos[estado] = response.data.count || 0;
-        }
-        
-        setPedidosPorEstado(conteos);
-      } catch (error) {
-        console.error('Error cargando estadísticas:', error);
-      }
-    };
+    refetch();
+    refetchEstadisticas(); // También refrescar estadísticas
+  }, [pagination.currentPage, pagination.pageSize, selectedEstado, refetch, refetchEstadisticas]);
 
-    fetchEstadisticas();
-  }, []);
+  // Función para eliminar pedido
+  const handleDeletePedido = async (pedido: PedidoServicio) => {
+    // Verificar estado
+    const estadosBloqueados = ['ACEPTADO', 'EN_FABRICACION', 'LISTO_INSTALAR', 'INSTALADO', 'COMPLETADO'];
+    if (estadosBloqueados.includes(pedido.estado)) {
+      toast.error(`No se puede eliminar un pedido en estado ${pedido.estado_display}`);
+      return;
+    }
+
+    // Confirmar eliminación
+    const confirmar = window.confirm(
+      `¿Estás seguro de eliminar el pedido ${pedido.numero_pedido}?\n\nEsta acción no se puede deshacer.`
+    );
+
+    if (!confirmar) return;
+
+    try {
+      await apiClient.delete(`pedidos-servicio/${pedido.id}/`);
+      toast.success(`Pedido ${pedido.numero_pedido} eliminado correctamente`);
+      await refetch();
+      await refetchEstadisticas();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Error al eliminar el pedido';
+      toast.error(errorMessage);
+      console.error('Error eliminando pedido:', error);
+    }
+  };
 
   // Actualizar total de registros cuando llegan los datos
   useEffect(() => {
@@ -116,11 +172,6 @@ const PedidosServicioPage = () => {
   // Define the columns for the table - Desktop view
   const columns: ColumnDef<PedidoServicio>[] = [
     {
-      id: "col-id",
-      accessorKey: "id",
-      header: t('common:id'),
-    },
-    {
       id: "col-numero",
       accessorKey: "numero_pedido",
       header: t('common:number'),
@@ -132,16 +183,18 @@ const PedidosServicioPage = () => {
     },
     {
       id: "col-solicitante",
-      accessorKey: "solicitante",
+      accessorKey: "solicitante_nombre",
       header: t('pedidos_servicio:requester'),
     },
     {
-      id: "col-fecha_inicio",
-      accessorKey: "fecha_inicio",
-      header: t('common:start_date'),
+      id: "col-fecha_registro",
+      accessorKey: "created_at",
+      header: t('pedidos_servicio:registration_date'),
       cell: ({ row }) => {
-        const date = row.original.fecha_inicio;
-        return date ? new Date(date as string).toLocaleDateString() : '-';
+        const datetime = row.original.created_at;
+        if (!datetime) return '-';
+        const date = new Date(datetime as string);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       },
     },
     {
@@ -160,11 +213,48 @@ const PedidosServicioPage = () => {
     {
       id: "col-actions",
       header: t('common:actions'),
-      cell: () => (
-        <Button variant="ghost" size="sm">
-          {t('common:view')}
-        </Button>
-      ),
+      cell: ({ row }) => {
+        const isAceptado = row.original.estado === 'ACEPTADO';
+        const showEditButton = canEditPedido && !isAceptado;
+        
+        return (
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                setSelectedPedido(row.original);
+                setIsDetailModalOpen(true);
+              }}
+            >
+              {t('common:view')}
+            </Button>
+            {showEditButton && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleEditClick(row.original)}
+              >
+                {t('common:edit')}
+              </Button>
+            )}
+            {(currentUser?.permissions?.includes('*') || 
+              currentUser?.permissions?.includes('pedidos_servicio.delete_pedidoservicio')) && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleDeletePedido(row.original)}
+                disabled={['ACEPTADO', 'EN_FABRICACION', 'LISTO_INSTALAR', 'INSTALADO', 'COMPLETADO'].includes(row.original.estado)}
+                title={['ACEPTADO', 'EN_FABRICACION', 'LISTO_INSTALAR', 'INSTALADO', 'COMPLETADO'].includes(row.original.estado) 
+                  ? 'No se puede eliminar pedidos en este estado' 
+                  : 'Eliminar pedido'}
+              >
+                {t('common:delete')}
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -180,6 +270,7 @@ const PedidosServicioPage = () => {
       accessorKey: "cliente_nombre",
       header: t('navigation:client'),
     },
+    { accessorKey: "solicitante_nombre", header: t('pedidos_servicio:requester') },
     {
       id: "mobile-estado",
       accessorKey: "estado_display",
@@ -193,11 +284,56 @@ const PedidosServicioPage = () => {
     {
       id: "mobile-actions",
       header: t('common:actions'),
-      cell: () => (
-        <Button variant="ghost" size="sm">
-          {t('common:view')}
-        </Button>
-      ),
+      cell: ({ row }) => {
+        const isAceptado = row.original.estado === 'ACEPTADO';
+        return (
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                setSelectedPedido(row.original);
+                setIsDetailModalOpen(true);
+              }}
+            >
+              {t('common:view')}
+            </Button>
+            {!isAceptado && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleEditClick(row.original)}
+              >
+                {t('common:edit')}
+              </Button>
+            )}
+            {(currentUser?.permissions?.includes('*') || 
+              currentUser?.permissions?.includes('pedidos_servicio.delete_pedidoservicio')) && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleDeletePedido(row.original)}
+                disabled={['ACEPTADO', 'EN_FABRICACION', 'LISTO_INSTALAR', 'INSTALADO', 'COMPLETADO'].includes(row.original.estado)}
+                title={['ACEPTADO', 'EN_FABRICACION', 'LISTO_INSTALAR', 'INSTALADO', 'COMPLETADO'].includes(row.original.estado) 
+                  ? 'No se puede eliminar pedidos en este estado' 
+                  : 'Eliminar pedido'}
+              >
+                {t('common:delete')}
+              </Button>
+            )}
+            {isAceptado && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                disabled
+                title="Pedido aceptado, ya no puede hacer modificaciones"
+              >
+                {t('common:edit')}
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -231,11 +367,22 @@ const PedidosServicioPage = () => {
       {/* Panel de Estadísticas */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {Object.entries(estadoConfig).map(([estado, config]) => (
-          <Card key={estado} className={`${config.bg} border-0`}>
+          <Card 
+            key={estado} 
+            className={`${config.bg} border-0 cursor-pointer transition-all hover:shadow-md ${selectedEstado === estado ? 'ring-2 ring-offset-2' : ''}`}
+            onClick={() => {
+              if (selectedEstado === estado) {
+                setSelectedEstado(null);
+              } else {
+                setSelectedEstado(estado);
+                pagination.setPage(1);
+              }
+            }}
+          >
             <CardContent className="p-3">
               <div className="text-2xl mb-1">{config.emoji}</div>
               <div className={`text-2xl font-bold ${config.text}`}>
-                {pedidosPorEstado[estado] || 0}
+                {conteosPorEstado[estado] || 0}
               </div>
               <div className="text-xs text-gray-600 truncate">
                 {getEstadoLabel(estado)}
@@ -254,9 +401,16 @@ const PedidosServicioPage = () => {
               {t('pedidos_servicio:description')}
             </CardDescription>
           </div>
-          <Button onClick={() => setIsCreating(true)}>
-            {t('pedidos_servicio:create_new')}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+              {isLoading ? 'Cargando...' : 'Refrescar'}
+            </Button>
+            {canCreatePedido && (
+              <Button onClick={handleCreateClick}>
+                {t('pedidos_servicio:create_new')}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
         {isMobile ? (
@@ -296,53 +450,176 @@ const PedidosServicioPage = () => {
         )}
       </CardContent>
       <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{t('pedidos_servicio:create_new')}</DialogTitle>
           </DialogHeader>
           <CreatePedidoServicioForm
             clientes={clientes}
             isLoading={isLoadingForm}
-            onCancel={() => setIsCreating(false)}
+            externalErrors={formErrors}
+            onCancel={() => {
+              setIsCreating(false);
+              setFormErrors({}); // Limpiar errores al cancelar
+            }}
             onSubmit={async (data) => {
               setIsLoadingForm(true);
               try {
-                // Crear el pedido servicio
-                const pedidoResponse = await axiosInstance.post('/api/v1/pedidos-servicio/', {
+                console.time('⏱️ Creación de pedido (transaccional)');
+                
+                // Preparar datos del pedido
+                const pedidoData = {
                   cliente_id: data.cliente,
                   solicitante: data.solicitante,
                   supervisor: data.supervisor,
                   fecha_inicio: data.fecha_inicio,
                   fecha_fin: data.fecha_fin,
                   observaciones: data.observaciones,
+                  manufacturador_id: data.fabricador_id,
+                  instalador_id: data.instalador_id,
                   estado: 'ENVIADO',
+                };
+
+                // Preparar datos de los items
+                const itemsData = data.items.map(item => ({
+                  ambiente: item.ambiente,
+                  modelo: item.modelo,
+                  tejido: item.tejido,
+                  largura: (item.largura),
+                  altura: (item.altura),
+                  cantidad_piezas: (item.cantidad_piezas),
+                  posicion_tejido: item.posicion_tejido,
+                  lado_comando: item.lado_comando,
+                  acionamiento: item.accionamiento,
+                  observaciones: item.observaciones,
+                }));
+
+                // Llamar al endpoint transaccional
+                const response = await apiClient.post('pedidos-servicio/crear-con-items/', {
+                  pedido: pedidoData,
+                  items: itemsData
                 });
 
-                const pedidoId = pedidoResponse.data.id;
-
-                // Crear los items del pedido
-                for (const item of data.items) {
-                  await axiosInstance.post(`/api/v1/pedidos-servicio/${pedidoId}/items/`, {
-                    ambiente: item.ambiente,
-                    modelo: item.modelo,
-                    tejido: item.tejido,
-                    largura: parseFloat(item.largura),
-                    altura: parseFloat(item.altura),
-                    cantidad_piezas: parseInt(item.cantidad_piezas),
-                    posicion_tejido: item.posicion_tejido,
-                    lado_comando: item.lado_comando,
-                    acionamiento: item.acionamiento,
-                    observaciones: item.observaciones,
-                  });
-                }
-
-                toast.success('Pedido creado exitosamente');
-                setIsCreating(false);
-                // Recargar la lista de pedidos
+                console.timeEnd('⏱️ Creación de pedido (transaccional)');
+                
+                // Mostrar mensaje de éxito
+                toast.success(t('pedidos_servicio:order_created_success', { count: itemsData.length }), {
+                  duration: 4000,
+                  position: 'top-center',
+                  icon: '✅',
+                });
+                
+                // Recargar datos
                 pagination.setPage(1);
+                await refetch();
+                
+                // Recargar estadísticas
+                await refetchEstadisticas();
+                
+                // Cerrar modal SOLO si todo fue exitoso
+                setIsCreating(false);
+                
               } catch (error: any) {
                 console.error('Error creando pedido:', error);
-                toast.error(error.response?.data?.detail || 'Error al crear el pedido');
+                
+                // Procesar errores del backend
+                const backendErrors = error.response?.data?.errors || {};
+                const errorDetail = error.response?.data?.detail || t('pedidos_servicio:error_creating_order');
+                
+                console.log('=== DEBUG: Errores del Backend ===');
+                console.log('Backend Errors completo:', JSON.stringify(backendErrors, null, 2));
+                console.log('Error Detail:', errorDetail);
+                console.log('Items en data:', data.items);
+                
+                // Mapear errores del backend al formato del formulario
+                const formErrors: { [key: string]: string } = {};
+                
+                // Errores de items (como cantidad_piezas negativa)
+                if (backendErrors.items) {
+                  backendErrors.items.forEach((itemErrors: any, index: number) => {
+                    console.log(`Procesando errores del item ${index}:`, itemErrors);
+                    if (itemErrors) {
+                      Object.keys(itemErrors).forEach(field => {
+                        const itemId = data.items[index]?.id;
+                        console.log(`  Campo: ${field}, Item ID: ${itemId}`);
+                        if (itemId) {
+                          const errorMessages = itemErrors[field];
+                          console.log(`  Mensajes de error:`, errorMessages);
+                          
+                          // Extraer el texto del error
+                          let errorText = '';
+                          if (Array.isArray(errorMessages)) {
+                            errorText = errorMessages.map((e: any) => {
+                              if (typeof e === 'string') return e;
+                              if (e.string) return e.string;
+                              if (e.message) return e.message;
+                              return JSON.stringify(e);
+                            }).join(', ');
+                          } else if (typeof errorMessages === 'string') {
+                            errorText = errorMessages;
+                          } else {
+                            errorText = JSON.stringify(errorMessages);
+                          }
+                          
+                          const errorKey = `${field}-${itemId}`;
+                          formErrors[errorKey] = errorText;
+                          console.log(`  -> Error mapeado: ${errorKey} = ${errorText}`);
+                        }
+                      });
+                    }
+                  });
+                }
+                
+                // Errores del pedido principal
+                Object.keys(backendErrors).forEach(field => {
+                  if (field !== 'items') {
+                    const errorMessages = backendErrors[field];
+                    const errorText = Array.isArray(errorMessages)
+                      ? errorMessages.map((e: any) => e.string || e).join(', ')
+                      : errorMessages;
+                    formErrors[field] = errorText;
+                  }
+                });
+                
+                // Actualizar estado de errores para que se pasen al formulario
+                setFormErrors(formErrors);
+                
+                console.log('=== Errores finales mapeados ===');
+                console.log(formErrors);
+                
+                // Scroll al primer campo con error después de un pequeño delay
+                setTimeout(() => {
+                  const firstErrorKey = Object.keys(formErrors)[0];
+                  if (firstErrorKey) {
+                    const element = document.getElementById(firstErrorKey);
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      element.focus();
+                    }
+                  }
+                }, 100);
+                
+                // Mostrar mensaje de error amigable
+                const errorCount = Object.keys(formErrors).length;
+                let errorMessage = '';
+                
+                if (errorCount > 0) {
+                  errorMessage = `Por favor corrija ${errorCount} error(es) en el formulario antes de continuar.`;
+                } else {
+                  errorMessage = errorDetail || 'Error al crear el pedido. Intente nuevamente.';
+                }
+                
+                toast.error(errorMessage, {
+                  duration: 6000,
+                  position: 'top-center',
+                  icon: '❌',
+                });
+                
+                // NO cerrar el modal para que el usuario vea los errores
               } finally {
                 setIsLoadingForm(false);
               }
@@ -350,7 +627,44 @@ const PedidosServicioPage = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Detalles del Pedido */}
+      {selectedPedido && (
+        <PedidoDetailModal
+          pedido={selectedPedido}
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedPedido(null);
+          }}
+          onStatusChanged={async () => {
+            // Refrescar la lista de pedidos y estadísticas
+            pagination.setPage(1);
+            await refetch();
+            await refetchEstadisticas();
+          }}
+        />
+      )}
     </Card>
+
+    {/* Modal de edición del pedido */}
+    {selectedPedido && (
+      <EditPedidoServicioModal
+        isOpen={isEditModalOpen}
+        pedido={selectedPedido}
+        clientes={clientes}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedPedido(null);
+        }}
+        onSuccess={() => {
+          // Recargar la lista de pedidos
+          pagination.setPage(1);
+          // Refrescar datos inmediatamente
+          refetch();
+        }}
+      />
+    )}
     </div>
   );
 };

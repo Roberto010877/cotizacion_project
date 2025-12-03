@@ -1,0 +1,14 @@
+{
+    "catalog_title": "Catálogo de Productos y Servicios",
+    "manage_products": "Administrar la lista maestra de productos y servicios de la empresa.",
+    "product_type": "Tipo de Producto",
+    "unit": "Unidad de Medida",
+    
+    "CORTINA": "Cortina (Textil)",
+    "PERSIANA": "Persiana (Mecánica)",
+    "TOLDO": "Toldo (Exterior)",
+    "MOTOR": "Motor / Automatización",
+    "RIEL": "Riel / Barral",
+    "SERVICIO": "Servicio (Mano de Obra)",
+    "OTRO": "Otro"
+}

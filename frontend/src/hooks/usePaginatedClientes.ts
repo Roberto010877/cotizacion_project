@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import type { Cliente, PaginatedResponse } from './useClientes';
 
 interface UsePaginatedClientesOptions {
@@ -20,7 +20,7 @@ export const usePaginatedClientes = (options: UsePaginatedClientesOptions = {}) 
         ...searchFilters,
       };
 
-      const { data } = await axiosInstance.get('/api/v1/clientes/', { params });
+      const { data } = await apiClient.get('clientes/', { params });
       return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

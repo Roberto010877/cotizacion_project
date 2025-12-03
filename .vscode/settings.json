@@ -4,7 +4,7 @@
     "python-envs.pythonProjects": [],
     "python.linting.enabled": true,
     "[python]": {
-        "editor.defaultFormatter": "ms-python.python",
+        "editor.defaultFormatter": "ms-python.autopep8",
         "editor.formatOnSave": true
     },
     "python.analysis.extraPaths": [

@@ -15,5 +15,8 @@
   "user_management_description": "Crear, ver y gestionar usuarios del sistema.",
   "create_user": "Crear Usuario",
   "create_new_user": "Crear Nuevo Usuario",
-  "create_user_description": "Completa los detalles para crear un nuevo usuario."
+  "create_user_description": "Completa los detalles para crear un nuevo usuario.",
+  "loading_dashboard": "Cargando dashboard...",
+  "error_loading_metrics": "Error al cargar las métricas del dashboard",
+  "retry": "Reintentar"
 }

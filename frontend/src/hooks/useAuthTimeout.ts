@@ -1,120 +1,122 @@
 // src/hooks/useAuthTimeout.ts
 import { useEffect, useCallback, useRef } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logOut } from '@/redux/authSlice';
 import toast from 'react-hot-toast';
 
+const ACTIVITY_KEY = 'last_activity';
+const CHECK_INTERVAL = 30000; // 30 segundos
+
 /**
  * Hook para gestionar el cierre de sesión por inactividad
- * @param timeoutMinutes - Minutos de inactividad antes de cerrar sesión (default: 1 minuto para testing)
+ * @param timeoutMinutes - Minutos de inactividad antes de cerrar sesión (default: 20 minutos)
  */
-export const useAuthTimeout = (timeoutMinutes: number = 5) => {
+export const useAuthTimeout = (timeoutMinutes: number = 20) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
+  const isLoggedIn = useSelector((state: any) => !!state.auth.token);
+
   /**
-   * Cierra la sesión del usuario de manera completa
+   * Cierra la sesión del usuario
    */
-  const handleLogout = useCallback((message?: string) => {
-    console.log('🔒 Ejecutando logout por inactividad...');
+  const handleLogout = useCallback(() => {
+    console.log('🔒 Cerrando sesión por inactividad');
     
-    // 1. Limpiar localStorage primero
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('last_activity');
-    
-    // 2. Despachar acción de logout
-    dispatch(logOut());
-    
-    // 3. Mostrar notificación
-    if (message) {
-      toast.error(message);
-    }
-    
-    // 4. Redirigir forzosamente
-    navigate('/login', { replace: true });
-    
-    // 5. Limpiar intervalo
+    // Limpiar intervalo primero
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+    
+    // Limpiar storage
+    localStorage.removeItem(ACTIVITY_KEY);
+    
+    // Despachar logout
+    dispatch(logOut());
+    
+    // Notificar y redirigir
+    toast.error('Tu sesión ha expirado por inactividad.');
+    navigate('/login', { replace: true });
   }, [dispatch, navigate]);
 
   /**
-   * Reinicia el temporizador de actividad SOLO si hay sesión activa
+   * Actualiza el timestamp de última actividad
    */
-  const resetActivityTimer = useCallback(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      localStorage.setItem('last_activity', Date.now().toString());
-      console.log('🔄 Actividad detectada - Timer reiniciado');
+  const updateActivity = useCallback(() => {
+    if (isLoggedIn) {
+      localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
     }
-  }, []);
+  }, [isLoggedIn]);
 
   /**
-   * Verifica si debe ejecutarse el logout por inactividad
+   * Verifica si debe cerrar sesión por inactividad
    */
   const checkInactivity = useCallback(() => {
-    const token = localStorage.getItem('access_token');
-    const lastActivity = localStorage.getItem('last_activity');
-    
-    // Si no hay token, no hacer nada
-    if (!token) {
-      console.log('❌ No hay token - No verificar inactividad');
+    // No verificar si no hay sesión
+    if (!isLoggedIn) {
       return;
     }
     
-    // Si no hay registro de actividad, crear uno
+    const lastActivity = localStorage.getItem(ACTIVITY_KEY);
+    
+    // Si no hay registro, crear uno y continuar
     if (!lastActivity) {
-      console.log('📝 Creando registro de actividad inicial');
-      localStorage.setItem('last_activity', Date.now().toString());
+      updateActivity();
       return;
     }
     
     const timeDiff = Date.now() - parseInt(lastActivity, 10);
     const minutesDiff = timeDiff / (1000 * 60);
     
-    console.log(`⏰ Tiempo inactivo: ${minutesDiff.toFixed(2)} minutos | Límite: ${timeoutMinutes} minutos`);
-    
+    // Solo cerrar sesión si excede el tiempo
     if (minutesDiff > timeoutMinutes) {
-      console.log('🚨 Tiempo de inactividad excedido - Cerrando sesión');
-      handleLogout('Tu sesión ha expirado por inactividad.');
+      console.log(`⏰ Inactividad: ${minutesDiff.toFixed(1)} min > ${timeoutMinutes} min`);
+      handleLogout();
     }
-  }, [timeoutMinutes, handleLogout]);
+  }, [isLoggedIn, timeoutMinutes, handleLogout, updateActivity]);
 
   useEffect(() => {
-    // Verificar inmediatamente al montar el hook
-    checkInactivity();
+    // Solo iniciar si hay sesión activa
+    if (!isLoggedIn) {
+      return;
+    }
+
+    console.log(`🛡️ Timeout de inactividad: ${timeoutMinutes} minutos`);
     
-    // Eventos que reinician el timer
-    const activityEvents: (keyof WindowEventMap)[] = [
-      'mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 
-      'click', 'keydown', 'wheel', 'resize'
+    // Registrar actividad inicial
+    updateActivity();
+    
+    // Eventos que indican actividad del usuario
+    const events: (keyof WindowEventMap)[] = [
+      'mousedown',
+      'keydown',
+      'scroll',
+      'touchstart',
+      'click'
     ];
     
-    // Agregar event listeners
-    activityEvents.forEach(event => {
-      document.addEventListener(event, resetActivityTimer, { passive: true });
+    // Agregar listeners
+    events.forEach(event => {
+      window.addEventListener(event, updateActivity, { passive: true });
     });
 
-    // Configurar intervalo de verificación (cada 10 segundos)
-    intervalRef.current = setInterval(checkInactivity, 10000);
+    // Intervalo de verificación
+    intervalRef.current = setInterval(checkInactivity, CHECK_INTERVAL);
     
-    console.log(`🛡️ Hook de inactividad iniciado - Cierre en ${timeoutMinutes} minuto(s)`);
-
     // Cleanup
     return () => {
-      console.log('🧹 Limpiando hook de inactividad');
-      activityEvents.forEach(event => {
-        document.removeEventListener(event, resetActivityTimer);
+      events.forEach(event => {
+        window.removeEventListener(event, updateActivity);
       });
       
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [timeoutMinutes, checkInactivity, resetActivityTimer]);
+  }, [isLoggedIn, timeoutMinutes, checkInactivity, updateActivity]);
 
-  return { resetActivityTimer };
+  return { updateActivity };
 };

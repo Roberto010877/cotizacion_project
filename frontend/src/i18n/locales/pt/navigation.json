@@ -42,6 +42,8 @@
   "updating_user_status": "Atualizando status...",
   "user_status_updated": "Status atualizado",
   "error_updating_user_status": "Erro ao atualizar status",
-  "toggle_user_status": "Alternar Status do Usuário"
+  "toggle_user_status": "Alternar Status do Usuário",
+  "role_admin": "Administrador",
+  "role_comercial": "Comercial"
   
 }

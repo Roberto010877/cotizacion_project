@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import type { PaginatedResponse } from './useClientes';
 
 export interface Proveedor {
@@ -34,7 +34,7 @@ export const usePaginatedProveedores = (
         ...searchFilters,
       };
 
-      const response = await axiosInstance.get('/api/v1/gestion/proveedores/', {
+      const response = await apiClient.get('gestion/proveedores/', {
         params,
       });
       return response.data;

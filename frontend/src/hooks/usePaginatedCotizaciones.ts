@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import type { PaginatedResponse } from './useClientes';
 
 export interface Cotizacion {
@@ -33,7 +33,7 @@ export const usePaginatedCotizaciones = (
         ...searchFilters,
       };
 
-      const response = await axiosInstance.get('/api/v1/gestion/cotizaciones/', {
+      const response = await apiClient.get('gestion/cotizaciones/', {
         params,
       });
       return response.data;

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 
 // Tipos (interfaces) para los datos de clientes
@@ -61,7 +61,7 @@ export const useClientes = (params?: Record<string, any>) => {
   return useQuery<PaginatedResponse<Cliente>, Error>({
     queryKey: ['clientes', params],
     queryFn: async () => {
-      const { data } = await axiosInstance.get('/api/v1/clientes/', { params });
+      const { data } = await apiClient.get('clientes/', { params });
       return data;
     },
   });
@@ -72,7 +72,7 @@ export const useCliente = (id: number) => {
   return useQuery<Cliente, Error>({
     queryKey: ['cliente', id],
     queryFn: async () => {
-      const { data } = await axiosInstance.get(`/api/v1/clientes/${id}/`);
+      const { data } = await apiClient.get(`clientes/${id}/`);
       return data;
     },
     enabled: !!id, // Solo ejecuta la query si el ID existe
@@ -84,7 +84,7 @@ export const useCreateCliente = () => {
   const queryClient = useQueryClient();
   return useMutation<Cliente, Error, ClienteFormData>({
     mutationFn: async (newCliente) => {
-      const { data } = await axiosInstance.post('/api/v1/clientes/', newCliente);
+      const { data } = await apiClient.post('clientes/', newCliente);
       return data;
     },
     onSuccess: () => {
@@ -102,7 +102,7 @@ export const useUpdateCliente = () => {
   const queryClient = useQueryClient();
   return useMutation<Cliente, Error, { id: number; data: ClienteUpdateFormData }>({
     mutationFn: async ({ id, data: updatedCliente }) => {
-      const { data } = await axiosInstance.patch(`/api/v1/clientes/${id}/`, updatedCliente);
+      const { data } = await apiClient.patch(`clientes/${id}/`, updatedCliente);
       return data;
     },
     onSuccess: (_, variables) => {
@@ -121,7 +121,7 @@ export const useDeleteCliente = () => {
   const queryClient = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: async (id) => {
-      await axiosInstance.delete(`/api/v1/clientes/${id}/`);
+      await apiClient.delete(`clientes/${id}/`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
@@ -145,7 +145,7 @@ export const useFilterOptions = () => {
   return useQuery<FilterOptions, Error>({
     queryKey: ['clienteFilterOptions'],
     queryFn: async () => {
-      const { data } = await axiosInstance.get('/api/v1/clientes/opciones-filtro/');
+      const { data } = await apiClient.get('clientes/opciones-filtro/');
       return data;
     },
     staleTime: Infinity, // Las opciones de filtro no cambian a menudo

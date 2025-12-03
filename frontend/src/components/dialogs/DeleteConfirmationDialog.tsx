@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAppTranslation } from '@/i18n/hooks';
-import axiosInstance from '@/lib/axios';
+import {apiClient} from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,7 +43,7 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
 
       setIsDeleting(true);
 
-      await axiosInstance.delete(`/api/v1/clientes/${cliente.id}/`);
+      await apiClient.delete(`/api/v1/clientes/${cliente.id}/`);
 
       toast.success(t('clientes:delete_success') || 'Cliente eliminado exitosamente');
       onOpenChange(false);

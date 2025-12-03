@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '@/redux/authSlice';
-import axiosInstance from '@/lib/axios';
+// CORRECCIÓN: Usamos llaves { } porque es una exportación nombrada, no default.
+import { apiClient } from '@/lib/apiClient'; 
 
 interface AuthContextType {
   isLoading: boolean;
@@ -18,29 +19,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       const token = localStorage.getItem('access_token');
-      console.log('Token from localStorage:', token); // Added console log
-      if (token) {
-        try {
-          console.log('Access token found in localStorage:', token);
-          const userResponse = await axiosInstance.get("/api/users/me/");
-          const userData = userResponse.data;
-          
-          dispatch(setCredentials({ user: userData, token }));
-        } catch (error) {
-          console.error('Error in auth initialization:', error);
-          // Log the specific error response if available
-          if (error instanceof Error && 'response' in error) {
-            console.error('Auth initialization error response:', (error as any).response?.status, (error as any).response?.data);
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      console.log('🔐 Inicializando autenticación');
+      
+      if (!token) {
+        console.log('No hay token de acceso');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Al usar apiClient, la URL base /api/v1/ ya está configurada.
+        console.log('Verificando token con /users/me/');
+        const userResponse = await apiClient.get("users/me/"); 
+        const userData = userResponse.data;
+        
+        console.log('✅ Autenticación exitosa:', userData);
+        dispatch(setCredentials({ user: userData, token }));
+      } catch (error: any) {
+        console.error('❌ Error en inicialización de auth:', error.response?.status);
+        
+        // Si obtenemos 401, intentar refrescar el token
+        if (error.response?.status === 401 && refreshToken) {
+          console.log('Token expirado, intentando refrescar...');
+          try {
+            // Limpiamos si falla todo para evitar bucles.
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+          } catch (refreshError) {
+            console.error('❌ Error fatal en auth:', refreshError);
           }
+        } else {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
         }
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeAuth();
-  }, [dispatch]); // Removed i18n from dependencies
+  }, [dispatch]);
 
   return (
     <AuthContext.Provider value={{ isLoading }}>

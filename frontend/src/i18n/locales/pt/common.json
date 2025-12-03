@@ -25,7 +25,7 @@
   "role": "Função",
   "select_role": "Selecionar função",
   "role_admin": "Administrador",
-  "role_collaborator": "Colaborador",
+  "role_comercial": "Comercial",
   "cancel": "Cancelar",
   "creating_user": "Criando usuário...",
   "user_created_successfully": "Usuário criado com sucesso",
@@ -57,5 +57,9 @@
   "previous_page": "Página anterior",
   "page": "Página",
   "next_page": "Próxima página",
-  "last_page": "Última página"
+  "last_page": "Última página",
+  "accept": "Aceitar",
+  "reject": "Rejeitar",
+  "back": "Voltar",
+  "updating": "Atualizando"
 }

@@ -25,7 +25,7 @@
   "role": "Role",
   "select_role": "Select role",
   "role_admin": "Administrator",
-  "role_collaborator": "Collaborator",
+  "role_comercial": "Commercial",
   "cancel": "Cancel",
   "start_date": "Start Date",
   "end_date": "End Date",
@@ -57,5 +57,13 @@
   "previous_page": "Previous page",
   "page": "Page",
   "next_page": "Next page",
-  "last_page": "Last page"
+  "last_page": "Last page",
+  "accept": "Accept",
+  "reject": "Reject",
+  "back": "Back",
+  "updating": "Updating",
+  "search": "Search",
+  "clear": "Clear",
+  "apply": "Apply",
+  "retry": "Retry"
 }

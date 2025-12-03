@@ -23,7 +23,7 @@ export interface TranslationResources {
     role: string;
     select_role: string;
     role_admin: string;
-    role_collaborator: string;
+    role_comercial: string;
     cancel: string;
     creating_user: string;
     user_created_successfully: string;
