@@ -61,5 +61,17 @@
   "accept": "Aceitar",
   "reject": "Rejeitar",
   "back": "Voltar",
-  "updating": "Atualizando"
+  "updating": "Atualizando",
+  "code": "Código",
+  "price": "Preço Base",
+  "search_placeholder": "Buscar por código ou nome...",
+  "search": "Buscar",
+  "clear": "Limpar",
+  "apply": "Aplicar",
+  "retry": "Tentar novamente",
+  "error_loading": "Erro ao carregar",
+  "filters": "Filtros",
+  "filter_by": "Filtrar Catálogo",
+  "select_all": "Todos",
+  "clear_filters": "Limpar"
 }

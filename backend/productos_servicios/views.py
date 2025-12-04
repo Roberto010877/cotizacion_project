@@ -1,11 +1,12 @@
-from rest_framework import viewsets, status
+# <--- FALTABA IMPORTAR filters
+from rest_framework import viewsets, status, filters
+from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import ProductoServicio
 from .serializers import ProductoServicioSerializer
 
 
-# Clase de Paginación corregida, ahora hereda de la importación correcta
 class StandardPagination(PageNumberPagination):
     """Paginación estándar para el catálogo."""
     page_size = 50
@@ -16,7 +17,7 @@ class StandardPagination(PageNumberPagination):
 class ProductoServicioViewSet(viewsets.ModelViewSet):
     """
     ViewSet para la API del Catálogo de Productos/Servicios.
-    Permite el CRUD y la búsqueda eficiente.
+    Permite el CRUD, filtrado avanzado y búsqueda por texto.
     """
 
     # Solo mostrar productos que no han sido eliminados lógicamente
@@ -24,16 +25,28 @@ class ProductoServicioViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoServicioSerializer
     pagination_class = StandardPagination
 
-    # --- FILTROS ---
-    filter_backends = [DjangoFilterBackend]
+    # --- CONFIGURACIÓN DE FILTROS Y BÚSQUEDA ---
+    filter_backends = [
+        # Habilita filtros exactos (?tipo_producto=CORTINA)
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter  # Habilita ordenamiento (?ordering=precio_base)
+    ]
+
+    # 1. Filtros exactos (Selectores)
     filterset_fields = ['tipo_producto', 'unidad_medida']
 
-    # Búsqueda global por texto
+    # 2. Búsqueda parcial (Input de texto) - Busca en código O nombre
     search_fields = ['codigo', 'nombre']
+
+    # 3. Ordenamiento
+    ordering_fields = ['nombre', 'precio_base', 'codigo']
+    ordering = ['nombre']  # Orden por defecto
 
     # Sobrescribir destroy para asegurar la eliminación lógica (soft-delete)
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         instance.is_active = False
         instance.save()
+        # Necesitamos importar Response para que esto funcione (ya agregado arriba)
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -28,12 +28,21 @@ export default defineConfig({
       port: 5173,
       protocol: 'ws',
     },
+    watch: {
+      usePolling: false, // Desactiva polling para mejorar rendimiento
+      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**'],
+    },
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'], // Pre-bundle dependencias críticas
+    exclude: [], // No excluir nada innecesariamente
   },
   build: {
     target: 'es2020',
     minify: 'esbuild',
     cssMinify: true,
     sourcemap: false,
+    chunkSizeWarningLimit: 1000, // Aumenta el límite de advertencia
     rollupOptions: {
       output: {
         manualChunks: {
@@ -44,4 +53,5 @@ export default defineConfig({
       },
     },
   },
+  cacheDir: 'node_modules/.vite', // Usa caché de node_modules
 })

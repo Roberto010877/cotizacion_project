@@ -32,10 +32,38 @@ env/
 
 # Django
 db.sqlite3
+db.sqlite3-journal
 *.log
 local_settings.py
 /media
 /staticfiles
+
+# Scripts temporales (mantener solo manage.py)
+backend/test_*.py
+backend/check_*.py
+backend/crear_*.py
+backend/create_*.py
+backend/debug_*.py
+backend/diagnostico_*.py
+backend/fix_*.py
+backend/limpiar_*.py
+backend/repair_*.py
+backend/reset_*.py
+backend/simular_*.py
+backend/verificar_*.py
+backend/ver_*.py
+backend/vincular_*.py
+backend/add_*.py
+backend/agregar_*.py
+backend/asignar_*.py
+backend/cleanup_*.py
+backend/clean_*.py
+backend/clear_*.py
+backend/completar_*.py
+backend/corregir_*.py
+backend/migrate_*.py
+backend/*.pdf
+backend/server.log
 
 # IDE
 .vscode/
@@ -57,10 +85,12 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
 
 # Frontend
 frontend/dist/
 frontend/.vite/
+frontend/node_modules/
 
 # OS
 .DS_Store

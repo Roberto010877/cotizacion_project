@@ -117,7 +117,7 @@ const EmptyDatabaseState = ({ onNavigate, onRefetch }: { onNavigate: (path: stri
 );
 
 const WelcomeState = ({ onNavigate }: { onNavigate: (path: string) => void }) => (
-  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-8 text-center mb-6">
+  <div className="bg-linear-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-8 text-center mb-6">
     <div className="flex flex-col items-center space-y-4">
       <div className="bg-blue-100 p-4 rounded-full">
         <FileText className="h-12 w-12 text-blue-600" />

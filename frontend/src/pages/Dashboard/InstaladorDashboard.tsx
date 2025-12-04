@@ -214,7 +214,7 @@ export const InstaladorDashboard: React.FC = () => {
                     <div className="mt-2 space-y-1">
                       {pedido.cliente_direccion && (
                         <div className="flex items-start gap-2 text-sm text-gray-600">
-                          <MapPin size={14} className="flex-shrink-0 mt-0.5 text-gray-400" />
+                          <MapPin size={14} className="shrink-0 mt-0.5 text-gray-400" />
                           <span>{pedido.cliente_direccion}</span>
                         </div>
                       )}

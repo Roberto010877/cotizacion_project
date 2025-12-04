@@ -3,6 +3,8 @@
     "manage_products": "Administrar la lista maestra de productos y servicios de la empresa.",
     "product_type": "Tipo de Producto",
     "unit": "Unidad de Medida",
+    "unit_of_measure": "Unidad de Medida",
+    "filter_desc": "Refina la búsqueda por características técnicas.",
     
     "CORTINA": "Cortina (Textil)",
     "PERSIANA": "Persiana (Mecánica)",

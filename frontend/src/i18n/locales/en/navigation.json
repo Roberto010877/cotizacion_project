@@ -28,6 +28,9 @@
   "quotes_description": "View and manage all your quotes",
   "create_quote": "Create Quote",
   "role_admin": "Administrator",
-  "role_comercial": "Sales"
-  
+  "role_comercial": "Sales",
+  "create_product": "Create Product",
+  "productos": "Product Catalog",
+  "manage_products": "Manage the master inventory.",
+  "name": "Name"
 }

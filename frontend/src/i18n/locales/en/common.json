@@ -65,5 +65,12 @@
   "search": "Search",
   "clear": "Clear",
   "apply": "Apply",
-  "retry": "Retry"
+  "retry": "Retry",
+  "code": "Code",
+  "price": "Base Price",
+  "search_placeholder": "Search by code or name...",
+  "filters": "Filters",
+  "filter_by": "Filter Catalog",
+  "select_all": "All",
+  "clear_filters": "Clear"
 }

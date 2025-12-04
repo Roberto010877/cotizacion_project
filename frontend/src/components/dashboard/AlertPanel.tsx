@@ -61,7 +61,8 @@ export const AlertPanel: React.FC<AlertPanelProps> = ({ alerts }) => {
               className={`${config.bgColor} ${config.borderColor} border rounded-lg p-4`}
             >
               <div className="flex items-start gap-3">
-                <Icon className={`${config.iconColor} flex-shrink-0 mt-0.5`} size={20} />
+                {/* Usamos 'shrink-0' para evitar que el icono se aplaste si hay mucho texto */}
+                <Icon className={`${config.iconColor} shrink-0 mt-0.5`} size={20} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <h4 className={`font-medium ${config.textColor}`}>{alert.title}</h4>

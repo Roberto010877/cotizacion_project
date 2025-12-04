@@ -12,7 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LayoutDashboard, ClipboardList, ShoppingCart, Users, Settings, LogOut, UserCircle } from "lucide-react";
+// AGREGADO: Importamos 'Package' para el ícono de productos
+import { LayoutDashboard, ClipboardList, ShoppingCart, Users, Settings, LogOut, UserCircle, Package } from "lucide-react";
 
 import CotizacionesPage from "@/pages/Cotizaciones";
 import ClientesPage from "@/pages/Clientes";
@@ -181,6 +182,10 @@ const DashboardLayout = () => {
               <NavLink to="/"><LayoutDashboard /><span>{t('navigation:dashboard')}</span></NavLink>
               <NavLink to="/mis-tareas"><ClipboardList /><span>{t('pedidos_servicio:my_tasks')}</span></NavLink>
               <NavLink to="/cotizaciones"><ClipboardList /><span>{t('navigation:quotes')}</span></NavLink>
+              
+              {/* --- AGREGADO: Menú de Productos --- */}
+              <NavLink to="/productos"><Package /><span>{t('navigation:products')}</span></NavLink>
+              
               <NavLink to="/pedidos-servicio"><ShoppingCart /><span>Pedidos de Servicio</span></NavLink>
               <NavLink to="/ordenes-compra"><ShoppingCart /><span>{t('navigation:purchase_orders')}</span></NavLink>
               <NavLink to="/proveedores"><Users /><span>{t('navigation:suppliers')}</span></NavLink>
@@ -270,7 +275,10 @@ function App() {
           <Route path="ordenes-compra" element={<RoleProtectedRoute route="/ordenes-compra"><OrdenesCompraPage /></RoleProtectedRoute>} />
           <Route path="proveedores" element={<RoleProtectedRoute route="/proveedores"><ProveedoresPage /></RoleProtectedRoute>} />
           <Route path="clientes" element={<RoleProtectedRoute route="/clientes"><ClientesPage /></RoleProtectedRoute>} />
+          
+          {/* Ruta de Productos ya estaba definida, el menú es lo que habilitamos arriba */}
           <Route path="productos" element={<RoleProtectedRoute route="/productos"><ProductosPage /></RoleProtectedRoute>} />
+          
           <Route path="pedidos-servicio" element={<RoleProtectedRoute route="/pedidos-servicio"><PedidosServicioPage /></RoleProtectedRoute>} />
           <Route path="instaladores" element={<RoleProtectedRoute route="/instaladores"><InstaladoresPage /></RoleProtectedRoute>} />
           <Route path="settings" element={<RoleProtectedRoute route="/settings"><SettingsPage /></RoleProtectedRoute>} />

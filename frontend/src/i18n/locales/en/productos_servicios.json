@@ -3,6 +3,8 @@
     "manage_products": "Manage the company's master list of products and services.",
     "product_type": "Product Type",
     "unit": "Unit of Measure",
+    "unit_of_measure": "Unit of Measure",
+    "filter_desc": "Refine search by technical characteristics.",
     
     "CORTINA": "Curtain (Textile)",
     "PERSIANA": "Blind (Mechanical)",

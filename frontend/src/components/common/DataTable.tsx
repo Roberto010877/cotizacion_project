@@ -21,12 +21,14 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   isLoading?: boolean
+  skeletonRows?: number // Número de filas skeleton a mostrar
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   isLoading = false,
+  skeletonRows = 8, // Por defecto 8 filas
 }: DataTableProps<TData, TValue>) {
   const { t } = useTranslation();
   const table = useReactTable({
@@ -62,7 +64,7 @@ export function DataTable<TData, TValue>({
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            Array.from({ length: 8 }).map((_, i) => (
+            Array.from({ length: skeletonRows }).map((_, i) => (
               <TableRow key={i} className="hover:bg-transparent">
                 {columns.map((_, j) => (
                   <TableCell key={j} className="py-4">

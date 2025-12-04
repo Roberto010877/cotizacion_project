@@ -44,6 +44,9 @@
   "error_updating_user_status": "Erro ao atualizar status",
   "toggle_user_status": "Alternar Status do Usuário",
   "role_admin": "Administrador",
-  "role_comercial": "Comercial"
-  
+  "role_comercial": "Comercial",
+  "create_product": "Criar Produto",
+  "produtos": "Catálogo de Produtos",
+  "manage_products": "Gerencie o inventário mestre.",
+  "name": "Nome"
 }

@@ -43,5 +43,13 @@
   "search": "Buscar",
   "clear": "Limpiar",
   "apply": "Aplicar",
-  "retry": "Reintentar"
+  "retry": "Reintentar",
+  "code": "Código",
+  "price": "Precio Base",
+  "search_placeholder": "Buscar por código o nombre...",
+  "error_loading": "Error al cargar",
+  "filters": "Filtros",
+  "filter_by": "Filtrar Catálogo",
+  "select_all": "Todos",
+  "clear_filters": "Limpiar"
 }
