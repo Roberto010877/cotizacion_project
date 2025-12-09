@@ -1,53 +1,69 @@
 import django_filters
-from django.db.models import Q
 from .models import Cotizacion
 
 
 class CotizacionFilter(django_filters.FilterSet):
     """
     Filtros avanzados para el listado de Cotizaciones.
-    Implementación de la Sección 5.3 del Documento de Arquitectura.
+    
+    Filtros disponibles:
+    - estado: Filtro exacto por estado
+    - cliente: Filtro por ID de cliente
+    - vendedor: Filtro por ID de vendedor
+    - fecha_desde: Fecha de emisión >= valor
+    - fecha_hasta: Fecha de emisión <= valor
+    - total_min: Total general >= valor
+    - total_max: Total general <= valor
+    
+    Nota: La búsqueda de texto (?search=) es manejada por SearchFilter en el ViewSet,
+    que busca en numero y cliente__nombre.
     """
 
-    # 1. Búsqueda por Número de Cotización (flexible)
-    numero = django_filters.CharFilter(
-        lookup_expr='icontains',
-        label='Número de Cotización'
-    )
-
-    # 2. Búsqueda por Nombre de Cliente (icontains en el campo nombre del modelo Cliente)
-    cliente_nombre = django_filters.CharFilter(
-        field_name='cliente__nombre',
-        lookup_expr='icontains',
-        label='Nombre del Cliente'
-    )
-
-    # 3. Filtro de Rango: Desde (mayor o igual)
+    # Filtros de rango de fecha
     fecha_desde = django_filters.DateFilter(
         field_name='fecha_emision',
         lookup_expr='gte',
         label='Fecha de Emisión (Desde)'
     )
 
-    # 4. Filtro de Rango: Hasta (menor o igual)
     fecha_hasta = django_filters.DateFilter(
         field_name='fecha_emision',
         lookup_expr='lte',
         label='Fecha de Emisión (Hasta)'
     )
 
-    # 5. Búsqueda Genérica: (Parámetro ?search=)
-    search = django_filters.CharFilter(
-        method='filter_general_search', label='Búsqueda General')
+    # Filtros por relaciones
+    cliente = django_filters.NumberFilter(
+        field_name='cliente__id',
+        label='Cliente (ID)'
+    )
 
-    def filter_general_search(self, queryset, name, value):
-        # Búsqueda en Número O Nombre de Cliente
-        return queryset.filter(
-            Q(numero__icontains=value) |
-            Q(cliente__nombre__icontains=value)
-        )
+    vendedor = django_filters.NumberFilter(
+        field_name='vendedor__id',
+        label='Vendedor (ID)'
+    )
+
+    # Filtros de rango de total
+    total_min = django_filters.NumberFilter(
+        field_name='total_general',
+        lookup_expr='gte',
+        label='Total Mínimo'
+    )
+
+    total_max = django_filters.NumberFilter(
+        field_name='total_general',
+        lookup_expr='lte',
+        label='Total Máximo'
+    )
 
     class Meta:
         model = Cotizacion
-        fields = ['numero', 'cliente_nombre',
-                  'estado', 'fecha_desde', 'fecha_hasta']
+        fields = [
+            'estado',
+            'cliente',
+            'vendedor',
+            'fecha_desde',
+            'fecha_hasta',
+            'total_min',
+            'total_max',
+        ]

@@ -1,9 +1,11 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 from decimal import Decimal
 
 # Importaciones externas de apps vecinas
+# NOTA: Asumo que Manufactura, Cliente, ProductoServicio y common.models existen
 from clientes.models import Cliente
 from manufactura.models import Manufactura
 from common.models import BaseModel, SoftDeleteMixin, TablaCorrelativos
@@ -17,7 +19,6 @@ from productos_servicios.models import ProductoServicio
 class Cotizacion(BaseModel, SoftDeleteMixin):
     """
     Encabezado de la cotización. Agrupa los ítems y gestiona el estado comercial.
-    Utiliza SoftDeleteMixin para la eliminación lógica (activo=False).
     """
 
     class EstadoCotizacion(models.TextChoices):
@@ -45,20 +46,20 @@ class Cotizacion(BaseModel, SoftDeleteMixin):
         verbose_name="Cliente"
     )
 
-    # Asume que Manufactura tiene un campo 'rol'
     vendedor = models.ForeignKey(
         Manufactura,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        limit_choices_to={'rol': 'VENDEDOR'},
+        limit_choices_to={'cargo': 'COMERCIAL'},
         related_name='cotizaciones_realizadas',
         verbose_name="Vendedor Responsable"
     )
 
     # --- FECHAS Y ESTADO ---
     fecha_emision = models.DateField(
-        auto_now_add=True, verbose_name="Fecha de Emisión")
+        auto_now_add=True, verbose_name="Fecha de Emisión",
+        help_text="Fecha de emisión de la cotización (se establece automáticamente)")
     fecha_validez = models.DateField(
         null=True, blank=True, verbose_name="Válida hasta")
 
@@ -77,17 +78,34 @@ class Cotizacion(BaseModel, SoftDeleteMixin):
     total_general = models.DecimalField(
         max_digits=14, decimal_places=2, default=0.00, verbose_name="Total General")
 
-    observaciones = models.TextField(
-        blank=True,
-        verbose_name="Observaciones Comerciales",
-        help_text="Notas visibles en el PDF para el cliente"
-    )
-
     def __str__(self):
         return f"{self.numero} - {self.cliente}"
 
+    # Método para recalcular totales del encabezado
+    def recalculate_totals(self):
+        """
+        Calcula el total bruto, descuento y total neto a partir de los ambientes.
+        
+        IMPORTANTE: Este método hace un save() usando update_fields para evitar
+        triggers recursivos y señales innecesarias. Es seguro llamarlo dentro
+        de transacciones atómicas.
+        """
+
+        # 1. Sumar totales de todos los items en todos los ambientes
+        total_bruto = sum(item.precio_total for ambiente in self.ambientes.all()
+                          for item in ambiente.items.all())
+
+        # 2. Aplicar descuento global (si lo hubiera, aquí se necesitaría un campo de descuento global en Cotizacion)
+        # Por ahora, total_neto = total_bruto
+
+        self.total_neto = total_bruto
+        # Asumo que descuento_total es un valor fijo aquí
+        self.total_general = total_bruto - self.descuento_total
+        # Usar update_fields para evitar triggers y señales innecesarias
+        self.save(update_fields=['total_neto', 'total_general', 'updated_at'])
+
     def save(self, *args, **kwargs):
-        # Implementación de Atomicidad para el Correlativo (Sección 7.2)
+        # Implementación de Atomicidad para el Correlativo
         if not self.numero:
             with transaction.atomic():
                 try:
@@ -95,6 +113,7 @@ class Cotizacion(BaseModel, SoftDeleteMixin):
                     correlativo = TablaCorrelativos.objects.get(prefijo='COT')
                     self.numero = correlativo.obtener_siguiente_codigo()
                 except TablaCorrelativos.DoesNotExist:
+                    # NOTA: Esta excepción debe ser ajustada a tu proyecto
                     raise ValidationError(
                         "Error: No existe un correlativo configurado con prefijo 'COT'.")
 
@@ -118,25 +137,53 @@ class Cotizacion(BaseModel, SoftDeleteMixin):
 
 
 # -----------------------------------------------------------------------------
-# 2. MODELO DETALLE (ITEMS DE COTIZACIÓN)
+# 2. MODELO AGRUPADOR (AMBIENTE)
 # -----------------------------------------------------------------------------
 
-class ItemCotizacion(BaseModel):
+class CotizacionAmbiente(models.Model):
     """
-    Detalle de la cotización. Guarda la configuración específica de cada producto
-    y mantiene los 'snapshots' de precio y descripción.
+    Agrupador lógico (Nivel intermedio). 
+    Ejemplo: "Sala", "Dormitorio Principal".
     """
-
     cotizacion = models.ForeignKey(
         Cotizacion,
         on_delete=models.CASCADE,
+        related_name='ambientes'
+    )
+    nombre = models.CharField(
+        max_length=100, verbose_name="Nombre del Ambiente")
+    orden = models.PositiveIntegerField(
+        default=0, help_text="Para ordenar en el PDF")
+
+    class Meta:
+        ordering = ['orden']
+        verbose_name = "Ambiente de Cotización"
+        verbose_name_plural = "Ambientes de Cotización"
+
+    def __str__(self):
+        return f"{self.nombre} ({self.cotizacion.numero})"
+
+# -----------------------------------------------------------------------------
+# 3. MODELO DETALLE (ITEM)
+# -----------------------------------------------------------------------------
+
+
+class CotizacionItem(BaseModel):
+    """
+    Detalle de la cotización. Se vincula al AMBIENTE.
+    """
+
+    # --- CAMBIO CRÍTICO: El item se vincula al AMBIENTE, no a la COTIZACION ---
+    ambiente = models.ForeignKey(
+        CotizacionAmbiente,
+        on_delete=models.CASCADE,
         related_name='items',
-        verbose_name="Cotización Padre"
+        verbose_name="Ambiente Padre"
     )
 
     producto = models.ForeignKey(
         ProductoServicio,
-        on_delete=models.PROTECT,  # No se puede borrar el producto si está siendo cotizado
+        on_delete=models.PROTECT,
         related_name='items_cotizados',
         verbose_name="Producto del Catálogo"
     )
@@ -152,26 +199,73 @@ class ItemCotizacion(BaseModel):
         max_digits=6, decimal_places=3, default=0.00, verbose_name="Alto (m)")
 
     # --- EL CAMPO MÁGICO DE DATOS ---
-    atributos_especificos = models.JSONField(
+    atributos_seleccionados = models.JSONField(
         default=dict,
         blank=True,
-        verbose_name="Atributos Técnicos (JSON)",
+        verbose_name="Atributos Seleccionados (JSON)",
         help_text="Ej: {'tejido': 'Linho', 'riel': 'Blanco', 'comando': 'Izq'}"
     )
 
-    # --- SNAPSHOTS ---
-    descripcion_completa = models.TextField(
+    # --- SNAPSHOTS y CÁLCULOS ---
+    descripcion_tecnica = models.TextField(
+        blank=True,
+        editable=False,
         verbose_name="Descripción Generada",
         help_text="Texto final generado para el PDF."
     )
 
     precio_unitario = models.DecimalField(
-        max_digits=12, decimal_places=2, verbose_name="Precio Unitario (Snapshot)")
+        max_digits=12, decimal_places=2, verbose_name="Precio Unitario Base (Snapshot)")
+    porcentaje_descuento = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0.00, verbose_name="Descuento Línea (%)")
     precio_total = models.DecimalField(
-        max_digits=12, decimal_places=2, verbose_name="Precio Total Línea")
+        max_digits=12, decimal_places=2, editable=False, verbose_name="Total Línea (Neto)")
+
+    def save(self, *args, skip_recalculate=False, **kwargs):
+        """
+        Guarda el item calculando precio_total y descripcion_tecnica automáticamente.
+        
+        Args:
+            skip_recalculate (bool): Si es True, NO recalcula los totales del encabezado.
+                Usar cuando se están creando múltiples items dentro de una transacción
+                y se va a recalcular una sola vez al final.
+        """
+        # 1. Calcular Totales
+        factor = Decimal(1)
+        # Accedemos al modelo relacionado a través del campo 'producto'
+        if self.producto.unidad_medida == 'M2' and self.producto.requiere_medidas:
+            area = self.ancho * self.alto
+            factor = area
+
+        subtotal = self.precio_unitario * factor * self.cantidad
+        descuento = subtotal * (self.porcentaje_descuento / Decimal(100))
+        self.precio_total = subtotal - descuento
+
+        # 2. Generar Descripción Técnica (Concatenación Automática)
+        self.generar_descripcion()
+
+        super().save(*args, **kwargs)
+
+        # 3. Recalcular total del encabezado después de guardar el item
+        # Solo si no se está ejecutando dentro de una transacción mayor
+        if not skip_recalculate:
+            self.ambiente.cotizacion.recalculate_totals()
+
+    def generar_descripcion(self):
+        """
+        Construye la string larga basada en el producto y los atributos JSON.
+        """
+        partes = [self.producto.nombre.upper()]
+
+        if self.atributos_seleccionados:
+            for key, value in self.atributos_seleccionados.items():
+                key_fmt = key.replace('_', ' ').replace('pide ', '').upper()
+                partes.append(f"{key_fmt}: {str(value).upper()}")
+
+        self.descripcion_tecnica = " | ".join(partes)
 
     def __str__(self):
-        return f"Item {self.numero_item} de {self.cotizacion.numero}"
+        return f"Item {self.numero_item} de {self.ambiente.cotizacion.numero}"
 
     def clean(self):
         super().clean()
@@ -185,4 +279,5 @@ class ItemCotizacion(BaseModel):
         verbose_name = "Ítem de Cotización"
         verbose_name_plural = "Ítems de Cotización"
         ordering = ['numero_item']
-        unique_together = ['cotizacion', 'numero_item']
+        # El numero_item debe ser único dentro de cada AMBIENTE, no dentro de toda la Cotización
+        unique_together = ['ambiente', 'numero_item']

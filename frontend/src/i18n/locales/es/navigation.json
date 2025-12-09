@@ -5,6 +5,7 @@
   "dashboard": "Dashboard",
   "dashboard_description": "Vista general del sistema",
   "quotes": "Cotizaciones",
+  "cotizaciones": "Cotizaciones",
   "purchase_orders": "Órdenes de Compra", 
   "purchase_orders_description": "Gestión de órdenes de compra",
   "suppliers": "Proveedores",
@@ -24,5 +25,7 @@
   "create_product": "Crear Producto",
   "productos": "Catálogo de Productos",
   "manage_products": "Administra el inventario maestro.",
-  "name": "Nombre"
+  "name": "Nombre",
+  "products": "Productos",
+  "clients": "Clientes"
 }

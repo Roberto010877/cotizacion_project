@@ -75,6 +75,13 @@ class PedidoServicio(BaseModel):
     )
 
     # --- FECHAS ---
+    fecha_emision = models.DateField(
+        verbose_name="Fecha de Emisión",
+        null=True,
+        blank=True,
+        help_text="Fecha en que se emitió el pedido de servicio"
+    )
+
     fecha_inicio = models.DateField(
         verbose_name="Fecha de Inicio",
         null=True,

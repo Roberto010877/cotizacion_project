@@ -1,57 +1,83 @@
 import { useQuery } from '@tanstack/react-query';
-import {apiClient} from '@/lib/apiClient';
-import type { PaginatedResponse } from './useClientes';
+import { apiClient } from '@/lib/apiClient'; // Usamos el cliente configurado para autenticación
+import { type Cotizacion, type PaginatedResponse, type CotizacionListFilters } from '@/pages/Cotizaciones/types';
 
-export interface Cotizacion {
-  id: number;
-  numero_cotizacion: string;
-  cliente: number;
-  cliente_nombre?: string;
-  fecha_vencimiento: string;
-  total: number;
-  estado: string;
-  observaciones?: string;
+// --- Definición de la URL base del ViewSet ---
+const COTIZACIONES_API_URL = '/gestion/cotizaciones/';
+
+// --- Tipos de los parámetros de entrada ---
+interface UseCotizacionesParams {
+  page: number;
+  pageSize: number;
+  filters: CotizacionListFilters;
 }
 
-interface UsePaginatedCotizacionesOptions {
-  page?: number;
-  pageSize?: number;
-  searchFilters?: Record<string, any>;
-}
+/**
+ * Hook personalizado para obtener la lista paginada y filtrada de Cotizaciones.
+ * Utiliza React Query para el manejo de cache, loading y errores.
+ * 
+ * Filtros soportados:
+ * - search: Búsqueda en numero y cliente__nombre
+ * - estado: Estado exacto (BORRADOR, ENVIADA, etc.)
+ * - fecha_desde, fecha_hasta: Rango de fechas de emisión
+ * - cliente: ID del cliente
+ * - vendedor: ID del vendedor
+ * - total_min, total_max: Rango de total general
+ * - ordering: Campo para ordenar (ej: -total_general, fecha_emision)
+ */
+export const usePaginatedCotizaciones = ({
+  page,
+  pageSize,
+  filters,
+}: UseCotizacionesParams) => {
+  
+  // Función de consulta (fetcher)
+  const fetchCotizaciones = async (): Promise<PaginatedResponse<Cotizacion>> => {
+    // Construir los parámetros de la URL
+    const params = new URLSearchParams();
+    
+    params.append('page', page.toString());
+    params.append('page_size', pageSize.toString());
 
-export const usePaginatedCotizaciones = (
-  options: UsePaginatedCotizacionesOptions = {}
-) => {
-  const { page = 1, pageSize = 25, searchFilters = {} } = options;
+    // --- Aplicar Filtros ---
+    if (filters.search) {
+      params.append('search', filters.search);
+    }
+    if (filters.estado && filters.estado !== 'ALL') {
+      params.append('estado', filters.estado);
+    }
+    if (filters.fecha_desde) {
+      params.append('fecha_desde', filters.fecha_desde); // Formato YYYY-MM-DD
+    }
+    if (filters.fecha_hasta) {
+      params.append('fecha_hasta', filters.fecha_hasta); // Formato YYYY-MM-DD
+    }
+    if (filters.cliente) {
+      params.append('cliente', filters.cliente.toString());
+    }
+    if (filters.vendedor) {
+      params.append('vendedor', filters.vendedor.toString());
+    }
+    if (filters.total_min) {
+      params.append('total_min', filters.total_min.toString());
+    }
+    if (filters.total_max) {
+      params.append('total_max', filters.total_max.toString());
+    }
+    if (filters.ordering) {
+      params.append('ordering', filters.ordering);
+    }
 
-  const query = useQuery<PaginatedResponse<Cotizacion>, Error>({
-    queryKey: ['cotizaciones', { page, pageSize, ...searchFilters }],
-    queryFn: async () => {
-      const params = {
-        page,
-        page_size: pageSize,
-        ...searchFilters,
-      };
-
-      const response = await apiClient.get('gestion/cotizaciones/', {
-        params,
-      });
-      return response.data;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutos
-  });
-
-  return {
-    data: query.data,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    refetch: query.refetch,
-    totalPages: query.data ? Math.ceil(query.data.count / pageSize) : 0,
-    hasNextPage: query.data?.next !== null,
-    hasPreviousPage: query.data?.previous !== null,
-    totalCount: query.data?.count || 0,
-    currentCount: query.data?.results?.length || 0,
+    const response = await apiClient.get<PaginatedResponse<Cotizacion>>(
+      `${COTIZACIONES_API_URL}?${params.toString()}`
+    );
+    
+    return response.data;
   };
-};
 
-export default usePaginatedCotizaciones;
+  return useQuery({
+    queryKey: ['cotizaciones', page, pageSize, filters], // La clave de consulta debe cambiar con la paginación y filtros
+    queryFn: fetchCotizaciones,
+    placeholderData: (previousData) => previousData, // Mantiene la data previa mientras carga la nueva página
+  });
+};

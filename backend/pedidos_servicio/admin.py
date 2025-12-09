@@ -32,12 +32,14 @@ class PedidoServicioAdmin(admin.ModelAdmin):
         'solicitante',
         'manufacturador',
         'instalador',
+        'fecha_emision',
         'fecha_inicio',
         'estado',
         'created_at',
     ]
     list_filter = [
         'estado',
+        'fecha_emision',
         'fecha_inicio',
         'fecha_fin',
         'created_at',

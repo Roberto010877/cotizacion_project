@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
+import { Search } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -8,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,7 @@ import InfiniteScroll from "@/components/common/InfiniteScroll";
 import CreatePedidoServicioForm from "@/components/forms/CreatePedidoServicioForm";
 import PedidoDetailModal from "@/components/modals/PedidoDetailModal";
 import EditPedidoServicioModal from "@/components/modals/EditPedidoServicioModal";
+import { PedidoServicioFilter } from "./components/PedidoServicioFilter";
 import { useAppTranslation } from "@/i18n/hooks";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import usePagination from "@/hooks/usePagination";
@@ -27,6 +30,7 @@ import usePaginatedPedidosServicio from "@/hooks/usePaginatedPedidosServicio";
 import usePedidosEstadisticas from "@/hooks/usePedidosEstadisticas";
 import useCurrentUser from "@/hooks/useCurrentUser";
 import type { PedidoServicio } from "@/hooks/usePaginatedPedidosServicio";
+import type { PedidoServicioListFilters, PedidoServicioFilters } from "./types";
 import { apiClient } from "@/lib/apiClient";
 import toast from "react-hot-toast";
 import { hasPermission } from "@/utils/permissions";
@@ -42,7 +46,16 @@ const PedidosServicioPage = () => {
   const [clientes, setClientes] = useState<Array<{ id: number; nombre: string; direccion?: string; telefono?: string; email?: string }>>([]);
   const [isLoadingForm, setIsLoadingForm] = useState(false);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-  const [selectedEstado, setSelectedEstado] = useState<string | null>(null);
+
+  // 1. ESTADO DE FILTROS GLOBALES
+  const [filters, setFilters] = useState<PedidoServicioListFilters>({
+    search: '',
+    estado: '',
+    fecha_emision_desde: undefined,
+    fecha_emision_hasta: undefined,
+  });
+
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Hook para estadísticas con auto-refresh
   const { conteosPorEstado, refetch: refetchEstadisticas } = usePedidosEstadisticas();
@@ -105,18 +118,38 @@ const PedidosServicioPage = () => {
     pageSizeOptions: [10, 25, 50, 100],
   });
 
-  // Datos paginados
+  // 2. DATOS API con filtros
   const { data, isLoading, refetch } = usePaginatedPedidosServicio({
     page: pagination.currentPage,
     pageSize: pagination.pageSize,
-    searchFilters: selectedEstado ? { estado: selectedEstado } : {},
+    filters: filters,
   });
 
-  // Refrescar datos cuando cambia la página o filtros
+  // 3. Debounce de búsqueda para actualizar filtros
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(prev => ({ ...prev, search: searchTerm }));
+      if (searchTerm !== filters.search) pagination.setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, filters.search, pagination]);
+
+  // 4. Actualizar total count
+  useEffect(() => {
+    if (data?.count) pagination.setTotalCount(data.count);
+  }, [data?.count, pagination]);
+
+  // Handler para aplicar filtros
+  const handleApplyFilters = (newFilters: PedidoServicioFilters) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+    pagination.setPage(1);
+  };
+
+  // Refrescar datos cuando cambia la página
   useEffect(() => {
     refetch();
-    refetchEstadisticas(); // También refrescar estadísticas
-  }, [pagination.currentPage, pagination.pageSize, selectedEstado, refetch, refetchEstadisticas]);
+    refetchEstadisticas();
+  }, [pagination.currentPage, pagination.pageSize, refetch, refetchEstadisticas]);
 
   // Función para eliminar pedido
   const handleDeletePedido = async (pedido: PedidoServicio) => {
@@ -140,9 +173,17 @@ const PedidosServicioPage = () => {
       await refetch();
       await refetchEstadisticas();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Error al eliminar el pedido';
-      toast.error(errorMessage);
       console.error('Error eliminando pedido:', error);
+      
+      // Si el error es 404, significa que ya fue eliminado
+      if (error.response?.status === 404) {
+        toast.error(`El pedido ${pedido.numero_pedido} ya no existe. Actualizando lista...`);
+        await refetch();
+        await refetchEstadisticas();
+      } else {
+        const errorMessage = error.response?.data?.detail || 'Error al eliminar el pedido';
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -187,14 +228,15 @@ const PedidosServicioPage = () => {
       header: t('pedidos_servicio:requester'),
     },
     {
-      id: "col-fecha_registro",
-      accessorKey: "created_at",
-      header: t('pedidos_servicio:registration_date'),
+      id: "col-fecha_emision",
+      accessorKey: "fecha_emision",
+      header: t('pedidos_servicio:issue_date') || 'Fecha Emisión',
       cell: ({ row }) => {
-        const datetime = row.original.created_at;
-        if (!datetime) return '-';
-        const date = new Date(datetime as string);
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const fecha = row.original.fecha_emision;
+        if (!fecha) return '-';
+        // Formatear fecha YYYY-MM-DD a DD/MM/YYYY
+        const [year, month, day] = fecha.split('-');
+        return `${day}/${month}/${year}`;
       },
     },
     {
@@ -369,12 +411,12 @@ const PedidosServicioPage = () => {
         {Object.entries(estadoConfig).map(([estado, config]) => (
           <Card 
             key={estado} 
-            className={`${config.bg} border-0 cursor-pointer transition-all hover:shadow-md ${selectedEstado === estado ? 'ring-2 ring-offset-2' : ''}`}
+            className={`${config.bg} border-0 cursor-pointer transition-all hover:shadow-md ${filters.estado === estado ? 'ring-2 ring-offset-2' : ''}`}
             onClick={() => {
-              if (selectedEstado === estado) {
-                setSelectedEstado(null);
+              if (filters.estado === estado) {
+                setFilters(prev => ({ ...prev, estado: '' }));
               } else {
-                setSelectedEstado(estado);
+                setFilters(prev => ({ ...prev, estado }));
                 pagination.setPage(1);
               }
             }}
@@ -394,22 +436,45 @@ const PedidosServicioPage = () => {
 
       {/* Tabla de Pedidos */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>{t('pedidos_servicio:title')}</CardTitle>
-            <CardDescription>
-              {t('pedidos_servicio:description')}
-            </CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
-              {isLoading ? 'Cargando...' : 'Refrescar'}
-            </Button>
-            {canCreatePedido && (
-              <Button onClick={handleCreateClick}>
-                {t('pedidos_servicio:create_new')}
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle>{t('pedidos_servicio:title')}</CardTitle>
+              <CardDescription>
+                {t('pedidos_servicio:description')}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+                {isLoading ? 'Cargando...' : 'Refrescar'}
               </Button>
-            )}
+              {canCreatePedido && (
+                <Button onClick={handleCreateClick}>
+                  {t('pedidos_servicio:create_new')}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Barra de búsqueda y filtros */}
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t('common:search') || 'Buscar...'}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-10"
+              />
+            </div>
+            <PedidoServicioFilter
+              currentFilters={{
+                estado: filters.estado,
+                fecha_emision_desde: filters.fecha_emision_desde,
+                fecha_emision_hasta: filters.fecha_emision_hasta,
+              }}
+              onApplyFilters={handleApplyFilters}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -499,7 +564,7 @@ const PedidosServicioPage = () => {
                 }));
 
                 // Llamar al endpoint transaccional
-                const response = await apiClient.post('pedidos-servicio/crear-con-items/', {
+                await apiClient.post('pedidos-servicio/crear-con-items/', {
                   pedido: pedidoData,
                   items: itemsData
                 });

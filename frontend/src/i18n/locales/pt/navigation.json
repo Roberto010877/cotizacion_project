@@ -5,6 +5,7 @@
   "dashboard": "Painel",
   "dashboard_description": "Visão geral do sistema",
   "quotes": "Cotações",
+  "cotizaciones": "Cotações",
 
   "purchase_orders": "Pedidos de Compra",
   "purchase_orders_description": "Gestão de pedidos de compra",
@@ -47,6 +48,8 @@
   "role_comercial": "Comercial",
   "create_product": "Criar Produto",
   "produtos": "Catálogo de Produtos",
-  "manage_products": "Gerencie o inventário mestre.",
-  "name": "Nome"
+  "manage_products": "Gerenciar inventário mestre.",
+  "name": "Nome",
+  "products": "Produtos",
+  "clients": "Clientes"
 }

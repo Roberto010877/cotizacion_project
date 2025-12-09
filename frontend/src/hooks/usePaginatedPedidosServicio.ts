@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import {apiClient} from '@/lib/apiClient';
-import type { PaginatedResponse } from './useClientes';
+import { apiClient } from '@/lib/apiClient';
+import type { PaginatedResponse, PedidoServicioListFilters } from '@/pages/PedidosServicio/types';
 
 export interface ItemPedidoServicio {
   id: number;
@@ -36,6 +36,7 @@ export interface PedidoServicio {
   colaborador?: number;
   colaborador_nombre?: string;
   supervisor?: string;
+  fecha_emision?: string;
   fecha_inicio: string;
   fecha_fin?: string;
   estado: 'ENVIADO' | 'ACEPTADO' | 'EN_FABRICACION' | 'LISTO_INSTALAR' | 'INSTALADO' | 'COMPLETADO' | 'RECHAZADO' | 'CANCELADO';
@@ -52,69 +53,76 @@ export interface PedidoServicio {
 }
 
 interface UsePaginatedPedidosServicioOptions {
-  page?: number;
-  pageSize?: number;
-  searchFilters?: Record<string, any>;
+  page: number;
+  pageSize: number;
+  filters: PedidoServicioListFilters;
 }
 
-// Función helper para crear una clave estable a partir de un objeto
-const createStableKey = (obj: Record<string, any>): string => {
-  if (!obj || Object.keys(obj).length === 0) return 'empty';
-  
-  // Ordenar las claves y crear un string estable
-  const sortedKeys = Object.keys(obj).sort();
-  const stableObj: Record<string, any> = {};
-  
-  sortedKeys.forEach(key => {
-    stableObj[key] = obj[key];
-  });
-  
-  return JSON.stringify(stableObj);
-};
+/**
+ * Hook personalizado para obtener la lista paginada y filtrada de Pedidos de Servicio.
+ * Utiliza React Query para el manejo de cache, loading y errores.
+ * 
+ * Filtros soportados:
+ * - search: Búsqueda en numero_pedido, cliente__nombre y solicitante
+ * - estado: Estado exacto (ENVIADO, ACEPTADO, etc.)
+ * - fecha_emision_desde, fecha_emision_hasta: Rango de fechas de emisión
+ * - cliente: ID del cliente
+ * - manufacturador: ID del manufacturador
+ * - instalador: ID del instalador
+ * - ordering: Campo para ordenar (ej: -created_at, numero_pedido)
+ */
+export const usePaginatedPedidosServicio = ({
+  page,
+  pageSize,
+  filters,
+}: UsePaginatedPedidosServicioOptions) => {
 
-export const usePaginatedPedidosServicio = (
-  options: UsePaginatedPedidosServicioOptions = {}
-) => {
-  const { page = 1, pageSize = 25, searchFilters = {} } = options;
+  const fetchPedidosServicio = async (): Promise<PaginatedResponse<PedidoServicio>> => {
+    // Construir los parámetros de la URL
+    const params = new URLSearchParams();
+    
+    params.append('page', page.toString());
+    params.append('page_size', pageSize.toString());
 
-  // Crear una clave estable para los filtros de búsqueda
-  const stableSearchKey = createStableKey(searchFilters);
+    // --- Aplicar Filtros ---
+    if (filters.search) {
+      params.append('search', filters.search);
+    }
+    if (filters.estado && filters.estado !== 'ALL') {
+      params.append('estado', filters.estado);
+    }
+    if (filters.fecha_emision_desde) {
+      params.append('fecha_emision_desde', filters.fecha_emision_desde);
+    }
+    if (filters.fecha_emision_hasta) {
+      params.append('fecha_emision_hasta', filters.fecha_emision_hasta);
+    }
+    if (filters.cliente) {
+      params.append('cliente', filters.cliente.toString());
+    }
+    if (filters.manufacturador) {
+      params.append('manufacturador', filters.manufacturador.toString());
+    }
+    if (filters.instalador) {
+      params.append('instalador', filters.instalador.toString());
+    }
+    if (filters.ordering) {
+      params.append('ordering', filters.ordering);
+    }
+
+    const response = await apiClient.get<PaginatedResponse<PedidoServicio>>(
+      `pedidos-servicio/?${params.toString()}`
+    );
+    
+    return response.data;
+  };
 
   const query = useQuery<PaginatedResponse<PedidoServicio>, Error>({
-    queryKey: ['pedidos-servicio', page, pageSize, stableSearchKey],
-    queryFn: async ({ queryKey }) => {
-      // ✅ CORREGIDO: Extraer parámetros de queryKey para evitar closure issues
-      const [, currentPage, currentPageSize, searchKey] = queryKey as [string, number, number, string];
-      
-      // Verificar que hay token antes de hacer la solicitud
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      // ✅ CORREGIDO: Reconstruir searchFilters desde la clave estable
-      const currentSearchFilters = searchKey === 'empty' ? {} : JSON.parse(searchKey);
-
-      const params = {
-        page: currentPage,
-        page_size: currentPageSize,
-        ...currentSearchFilters,
-      };
-
-      try {
-        const response = await apiClient.get('pedidos-servicio/', {
-          params,
-        });
-        return response.data;
-      } catch (error: any) {
-        console.error('Error fetching pedidos-servicio:', error.response?.status, error.response?.data);
-        throw error;
-      }
-    },
+    queryKey: ['pedidos-servicio', page, pageSize, filters],
+    queryFn: fetchPedidosServicio,
+    placeholderData: (previousData) => previousData, // Mantiene la data previa mientras carga
     staleTime: 1000 * 60 * 5, // 5 minutos
     gcTime: 1000 * 60 * 10, // 10 minutos de cache
-    refetchInterval: false,
-    retry: 1,
   });
 
   return {

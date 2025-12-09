@@ -1,18 +1,8 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { Filter, X } from "lucide-react";
 import { useAppTranslation } from "@/i18n/hooks";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea"; 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -20,261 +10,137 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { ProductoServicio } from "../types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
-interface ProductFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  productToEdit?: ProductoServicio | null;
-  onSubmit: (data: any) => void;
-  isSubmitting: boolean;
-}
-
-interface ProductFormData {
-  codigo: string;
-  nombre: string;
+// Definimos la estructura de los filtros
+export interface FilterState {
   tipo_producto: string;
   unidad_medida: string;
-  precio_base: number | string;
-  requiere_medidas: boolean;
-  configuracion_ui: string; // Lo manejamos como string en el formulario
 }
 
-export function ProductForm({
-  open,
-  onOpenChange,
-  productToEdit,
-  onSubmit,
-  isSubmitting,
-}: ProductFormProps) {
-  const { t } = useAppTranslation(["common", "productos_servicios", "navigation"]);
+interface ProductFilterProps {
+  currentFilters: FilterState;
+  onApplyFilters: (filters: FilterState) => void;
+  onClearFilters: () => void;
+}
 
-  const { 
-    register, 
-    handleSubmit, 
-    reset, 
-    setValue, 
-    watch, 
-    setError,
-    clearErrors,
-    formState: { errors } 
-  } = useForm<ProductFormData>({
-    defaultValues: {
-      codigo: "",
-      nombre: "",
-      tipo_producto: "CORTINA",
-      unidad_medida: "M2",
-      precio_base: 0,
-      requiere_medidas: false,
-      configuracion_ui: "{}",
-    },
+export function ProductFilter({
+  currentFilters,
+  onApplyFilters,
+  onClearFilters,
+}: ProductFilterProps) {
+  const { t } = useAppTranslation(["productos_servicios", "common"]);
+  
+  // Usamos react-hook-form para manejar el estado del formulario localmente
+  const { setValue, watch, handleSubmit, reset } = useForm<FilterState>({
+    defaultValues: currentFilters,
   });
 
-  // Efecto para cargar datos al editar o limpiar al crear
+  // Sincronizar formulario si los filtros externos cambian (ej: limpiar desde fuera)
   useEffect(() => {
-    if (open) {
-      if (productToEdit) {
-        reset({
-          codigo: productToEdit.codigo,
-          nombre: productToEdit.nombre,
-          tipo_producto: productToEdit.tipo_producto,
-          unidad_medida: productToEdit.unidad_medida,
-          precio_base: productToEdit.precio_base,
-          requiere_medidas: productToEdit.requiere_medidas,
-          configuracion_ui: JSON.stringify(productToEdit.configuracion_ui || {}, null, 2),
-        });
-      } else {
-        reset({
-          codigo: "",
-          nombre: "",
-          tipo_producto: "CORTINA",
-          unidad_medida: "M2",
-          precio_base: 0,
-          requiere_medidas: false,
-          configuracion_ui: "{\n  \"pide_color\": true\n}",
-        });
-      }
-      clearErrors(); // Limpiar errores visuales al abrir
-    }
-  }, [productToEdit, open, reset, clearErrors]);
+    reset(currentFilters);
+  }, [currentFilters, reset]);
 
-  const handleFormSubmit = (data: ProductFormData) => {
-    // 1. Validación manual del JSON
-    let configParsed = {};
-    try {
-      configParsed = JSON.parse(data.configuracion_ui);
-    } catch (e) {
-      setError("configuracion_ui", { 
-        type: "manual", 
-        message: "El formato JSON es inválido. Verifica comillas y llaves." 
-      });
-      return; // Detenemos el envío
-    }
-
-    // 2. Preparar payload
-    const payload = {
-      ...data,
-      precio_base: Number(data.precio_base),
-      configuracion_ui: configParsed,
-    };
-    
-    onSubmit(payload);
+  const onSubmit = (data: FilterState) => {
+    onApplyFilters(data);
   };
 
+  const handleClear = () => {
+    const emptyFilters = { tipo_producto: "", unidad_medida: "" };
+    reset(emptyFilters);
+    onClearFilters();
+  };
+
+  // Observamos valores para cambiar el estilo del botón si hay filtros activos
+  const values = watch();
+  const hasActiveFilters = values.tipo_producto || values.unidad_medida;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant={hasActiveFilters ? "default" : "outline"} className="gap-2">
+          <Filter className="h-4 w-4" />
+          {t("common:filters")}
+          {hasActiveFilters && (
+            <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
+              •
+            </span>
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {productToEdit ? t("common:edit") : t("navigation:create_product")}
-          </DialogTitle>
+          <DialogTitle>{t("common:filter_by")}</DialogTitle>
           <DialogDescription>
-            {t("productos_servicios:manage_products")}
+            {t("productos_servicios:filter_desc")}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4">
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* CÓDIGO */}
-            <div className="grid gap-2">
-              <Label htmlFor="codigo" className={errors.codigo ? "text-red-500" : ""}>
-                {t("common:code")} *
-              </Label>
-              <Input 
-                id="codigo" 
-                {...register("codigo", { 
-                  required: "El código es obligatorio",
-                  minLength: { value: 3, message: "Mínimo 3 caracteres" }
-                })}
-                className={errors.codigo ? "border-red-500" : ""}
-              />
-              {errors.codigo && (
-                <span className="text-red-500 text-xs">{errors.codigo.message}</span>
-              )}
-            </div>
-
-            {/* TIPO */}
-            <div className="grid gap-2">
-              <Label htmlFor="tipo">{t("productos_servicios:product_type")} *</Label>
-              <Select
-                onValueChange={(val) => setValue("tipo_producto", val)}
-                value={watch("tipo_producto")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CORTINA">Cortina</SelectItem>
-                  <SelectItem value="PERSIANA">Persiana</SelectItem>
-                  <SelectItem value="TOLDO">Toldo</SelectItem>
-                  <SelectItem value="MOTOR">Motor</SelectItem>
-                  <SelectItem value="RIEL">Riel/Barral</SelectItem>
-                  <SelectItem value="SERVICIO">Servicio</SelectItem>
-                  <SelectItem value="OTRO">Otro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* NOMBRE */}
+          {/* FILTRO: TIPO DE PRODUCTO */}
           <div className="grid gap-2">
-            <Label htmlFor="nombre" className={errors.nombre ? "text-red-500" : ""}>
-              {t("navigation:name")} *
-            </Label>
-            <Input 
-              id="nombre" 
-              {...register("nombre", { required: "El nombre es obligatorio" })}
-              className={errors.nombre ? "border-red-500" : ""}
-            />
-            {errors.nombre && (
-              <span className="text-red-500 text-xs">{errors.nombre.message}</span>
-            )}
+            <Label htmlFor="tipo">{t("productos_servicios:product_type")}</Label>
+            <Select
+              value={watch("tipo_producto")}
+              onValueChange={(val) => setValue("tipo_producto", val === "ALL" ? "" : val)}
+            >
+              <SelectTrigger id="tipo">
+                <SelectValue placeholder={t("common:select_all")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">{t("common:select_all")}</SelectItem>
+                <SelectItem value="CORTINA">Cortina (Textil)</SelectItem>
+                <SelectItem value="PERSIANA">Persiana (Mecánica)</SelectItem>
+                <SelectItem value="TOLDO">Toldo (Exterior)</SelectItem>
+                <SelectItem value="MOTOR">Motor / Automatización</SelectItem>
+                <SelectItem value="RIEL">Riel / Barral</SelectItem>
+                <SelectItem value="SERVICIO">Servicio (Mano de Obra)</SelectItem>
+                <SelectItem value="OTRO">Otro</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             {/* PRECIO */}
-             <div className="grid gap-2">
-              <Label htmlFor="precio" className={errors.precio_base ? "text-red-500" : ""}>
-                {t("common:price")} *
-              </Label>
-              <Input 
-                id="precio" 
-                type="number" 
-                step="0.01" 
-                {...register("precio_base", { 
-                  required: "El precio es obligatorio", 
-                  min: { value: 0, message: "El precio no puede ser negativo" }
-                })} 
-                className={errors.precio_base ? "border-red-500" : ""}
-              />
-              {errors.precio_base && (
-                <span className="text-red-500 text-xs">{errors.precio_base.message}</span>
-              )}
-            </div>
-
-            {/* UNIDAD */}
-            <div className="grid gap-2">
-              <Label htmlFor="unidad">{t("productos_servicios:unit")} *</Label>
-              <Select
-                onValueChange={(val) => setValue("unidad_medida", val)}
-                value={watch("unidad_medida")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="M2">Metros Cuadrados (m²)</SelectItem>
-                  <SelectItem value="ML">Metros Lineales (ml)</SelectItem>
-                  <SelectItem value="UN">Unidad (un)</SelectItem>
-                  <SelectItem value="GL">Global (gl)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* REQUIERE MEDIDAS */}
-          <div className="flex items-center space-x-2 py-2">
-            <Checkbox 
-              id="medidas" 
-              checked={watch("requiere_medidas")}
-              onCheckedChange={(checked) => setValue("requiere_medidas", checked as boolean)}
-            />
-            <Label htmlFor="medidas" className="cursor-pointer">
-              ¿Requiere Medidas (Ancho x Alto)?
-            </Label>
-          </div>
-
-          {/* CONFIGURACIÓN UI (JSON) */}
+          {/* FILTRO: UNIDAD DE MEDIDA */}
           <div className="grid gap-2">
-            <Label htmlFor="config_ui" className={errors.configuracion_ui ? "text-red-500" : ""}>
-              Configuración UI (JSON)
-            </Label>
-            <Textarea
-              id="config_ui"
-              className={`font-mono text-xs ${errors.configuracion_ui ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-              rows={5}
-              {...register("configuracion_ui")}
-            />
-            {errors.configuracion_ui ? (
-              <span className="text-red-500 text-xs font-medium">
-                {errors.configuracion_ui.message}
-              </span>
-            ) : (
-              <p className="text-[10px] text-muted-foreground">
-                Define los campos dinámicos: "pide_color": true, "pide_riel": true...
-              </p>
-            )}
+            <Label htmlFor="unidad">{t("productos_servicios:unit")}</Label>
+            <Select
+              value={watch("unidad_medida")}
+              onValueChange={(val) => setValue("unidad_medida", val === "ALL" ? "" : val)}
+            >
+              <SelectTrigger id="unidad">
+                <SelectValue placeholder={t("common:select_all")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">{t("common:select_all")}</SelectItem>
+                <SelectItem value="M2">Metros Cuadrados (m²)</SelectItem>
+                <SelectItem value="ML">Metros Lineales (ml)</SelectItem>
+                <SelectItem value="UN">Unidad (un)</SelectItem>
+                <SelectItem value="GL">Global (gl)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t("common:cancel")}
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClear}
+              className="text-muted-foreground w-full sm:w-auto"
+            >
+              <X className="mr-2 h-4 w-4" />
+              {t("common:clear_filters")}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? t("common:loading") : t("common:save")}
-            </Button>
+            <Button type="submit" className="w-full sm:w-auto">{t("common:apply")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

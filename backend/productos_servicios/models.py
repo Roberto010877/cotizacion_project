@@ -1,6 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-# Asumo que BaseModel y SoftDeleteMixin están importados correctamente
+# No se necesita importar ProductoServicio aquí.
 from common.models import BaseModel, SoftDeleteMixin
 
 # -----------------------------------------------------------------------------
@@ -34,13 +34,19 @@ class ProductoServicio(BaseModel, SoftDeleteMixin):
         max_length=50,
         unique=True,
         verbose_name="Código Interno",
-        # Agrego el formato sugerido
         help_text="Formato sugerido: CAT-TIP-000 (Ej: COR-WAV-001)"
     )
 
     nombre = models.CharField(
         max_length=255,
         verbose_name="Nombre Comercial"
+    )
+
+    # Agregado para descripción y búsqueda (del hilo anterior)
+    descripcion = models.TextField(
+        blank=True,
+        verbose_name="Descripción Técnica",
+        help_text="Detalles internos sobre materiales o proveedores."
     )
 
     # --- CLASIFICACIÓN ---
@@ -62,13 +68,22 @@ class ProductoServicio(BaseModel, SoftDeleteMixin):
         max_digits=12,
         decimal_places=2,
         default=0.00,
-        verbose_name="Precio Base (Lista)"
+        verbose_name="Precio Venta Base"
+    )
+
+    # Agregado para cálculo de márgenes (del hilo anterior)
+    costo_estandar = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0.00,
+        verbose_name="Costo Estándar",
+        help_text="Costo referencial para cálculo de márgenes."
     )
 
     requiere_medidas = models.BooleanField(
         default=False,
         verbose_name="¿Requiere Medidas?",
-        help_text="Si es True, el sistema obligará a ingresar Ancho y Alto."
+        help_text="Si es True, el sistema obligará a ingresar Ancho y Alto en la cotización."
     )
 
     # --- EL CAMPO MÁGICO DE CONFIGURACIÓN UI ---
@@ -81,27 +96,26 @@ class ProductoServicio(BaseModel, SoftDeleteMixin):
 
     # === MÉTODOS MÁGICOS Y VALIDACIÓN ===
     def clean(self):
-        """Validaciones de integridad y formato para el producto."""
         super().clean()
 
-        # 1. Asegurar mayúsculas y limpieza del código
         if self.codigo:
             self.codigo = self.codigo.upper().strip()
 
-        # 2. Validar estructura básica del JSON de configuración
         if self.configuracion_ui and not isinstance(self.configuracion_ui, dict):
             raise ValidationError(
                 {'configuracion_ui': 'El campo de configuración UI debe ser un objeto JSON.'})
 
+        if self.precio_base < 0:
+            raise ValidationError(
+                {'precio_base': 'El precio no puede ser negativo.'})
+
     def __str__(self):
-        """Representación de cadena legible."""
         return f"[{self.codigo}] {self.nombre}"
 
     class Meta:
         verbose_name = "Producto / Servicio"
         verbose_name_plural = "Catálogo de Productos"
         ordering = ['nombre']
-        # Índices para optimizar búsquedas (Sección 5.3 del documento)
         indexes = [
             models.Index(fields=['tipo_producto']),
             models.Index(fields=['codigo']),

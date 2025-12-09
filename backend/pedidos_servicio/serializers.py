@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import PedidoServicio, ItemPedidoServicio
 from clientes.models import Cliente
 from manufactura.models import Manufactura
@@ -39,6 +40,20 @@ class ItemPedidoServicioSerializer(serializers.ModelSerializer):
     posicion_tejido_display = serializers.CharField(source='get_posicion_tejido_display', read_only=True)
     lado_comando_display = serializers.CharField(source='get_lado_comando_display', read_only=True)
     acionamiento_display = serializers.CharField(source='get_acionamiento_display', read_only=True)
+    
+    # Campos de fecha/hora con zona horaria local
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return timezone.localtime(obj.created_at).isoformat()
+        return None
+
+    def get_updated_at(self, obj):
+        if obj.updated_at:
+            return timezone.localtime(obj.updated_at).isoformat()
+        return None
 
     class Meta:
         model = ItemPedidoServicio
@@ -86,6 +101,18 @@ class PedidoServicioSerializer(serializers.ModelSerializer):
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
 
     solicitante_nombre = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return timezone.localtime(obj.created_at).isoformat()
+        return None
+
+    def get_updated_at(self, obj):
+        if obj.updated_at:
+            return timezone.localtime(obj.updated_at).isoformat()
+        return None
 
     def get_solicitante_nombre(self, obj):
         if obj.usuario_creacion:
@@ -105,6 +132,7 @@ class PedidoServicioSerializer(serializers.ModelSerializer):
             'instalador',
             'instalador_id',
             'supervisor',
+            'fecha_emision',
             'fecha_inicio',
             'fecha_fin',
             'estado',
@@ -129,6 +157,12 @@ class PedidoServicioListSerializer(serializers.ModelSerializer):
     manufacturador_nombre = serializers.SerializerMethodField()
     instalador_nombre = serializers.SerializerMethodField()
     solicitante_nombre = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return timezone.localtime(obj.created_at).isoformat()
+        return None
 
     def get_manufacturador_nombre(self, obj):
         return f"{obj.manufacturador.nombre} {obj.manufacturador.apellido}".strip() if obj.manufacturador else None
@@ -151,6 +185,7 @@ class PedidoServicioListSerializer(serializers.ModelSerializer):
             'manufacturador_nombre',
             'instalador_nombre',
             'supervisor',
+            'fecha_emision',
             'fecha_inicio',
             'fecha_fin',
             'estado',
@@ -175,6 +210,18 @@ class PedidoServicioDetailSerializer(serializers.ModelSerializer):
     solicitante_nombre = serializers.SerializerMethodField()
     manufacturador_nombre = serializers.SerializerMethodField()
     instalador_nombre = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return timezone.localtime(obj.created_at).isoformat()
+        return None
+
+    def get_updated_at(self, obj):
+        if obj.updated_at:
+            return timezone.localtime(obj.updated_at).isoformat()
+        return None
 
     def get_solicitante_nombre(self, obj):
         if obj.usuario_creacion:

@@ -47,7 +47,7 @@ DB_LOCK_MAX_RETRIES = 3
 DB_LOCK_RETRY_BASE_DELAY = 0.5  # segundos
 
 # Configuración de paginación
-PEDIDOS_PER_PAGE = 25
+PEDIDOS_PER_PAGE = 20
 PEDIDOS_MAX_PER_PAGE = 100
 
 # Días para considerar "próximamente" en el endpoint

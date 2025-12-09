@@ -29,9 +29,12 @@ import ptPedidosServicio from './locales/pt/pedidos-servicio.json';
 import esInstaladores from './locales/es/instaladores.json';
 import enInstaladores from './locales/en/instaladores.json';
 import ptInstaladores from './locales/pt/instaladores.json';
+import esCotizaciones from './locales/es/cotizaciones.json';
+import enCotizaciones from './locales/en/cotizaciones.json';
+import ptCotizaciones from './locales/pt/cotizaciones.json';
 
 // Definición de namespaces disponibles
-export const availableNamespaces = ["common", "login", "dashboard", "navigation", "clientes", "pedidos_servicio", "instaladores", "productos_servicios"] as const;
+export const availableNamespaces = ["common", "login", "dashboard", "navigation", "clientes", "pedidos_servicio", "instaladores", "productos_servicios", "cotizaciones"] as const;
 export type AvailableNamespaces = typeof availableNamespaces[number];
 
 // Definición de idiomas disponibles
@@ -51,7 +54,8 @@ i18n
         clientes: esClientes,
         pedidos_servicio: esPedidosServicio,
         instaladores: esInstaladores,
-        productos_servicios: esProductosServicios
+        productos_servicios: esProductosServicios,
+        cotizaciones: esCotizaciones
       },
       en: {
         navigation: enNavigation,
@@ -61,7 +65,8 @@ i18n
         clientes: enClientes,
         pedidos_servicio: enPedidosServicio,
         instaladores: enInstaladores,
-        productos_servicios: enProductosServicios
+        productos_servicios: enProductosServicios,
+        cotizaciones: enCotizaciones
       },
       pt: {
         navigation: ptNavigation,
@@ -71,7 +76,8 @@ i18n
         clientes: ptClientes,
         pedidos_servicio: ptPedidosServicio,
         instaladores: ptInstaladores,
-        productos_servicios: ptProductosServicios
+        productos_servicios: ptProductosServicios,
+        cotizaciones: ptCotizaciones
       }
     },
     ns: availableNamespaces,

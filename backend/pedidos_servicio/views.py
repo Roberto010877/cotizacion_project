@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from django.http import FileResponse
 from django.db import transaction
-from rest_framework.pagination import PageNumberPagination
+from django.utils import timezone
 
 from .models import PedidoServicio, ItemPedidoServicio
 from .serializers import (
@@ -25,37 +25,66 @@ from .permissions import (
 )
 
 from .services import PedidoServicioService
-from .constants import PEDIDOS_PER_PAGE, PEDIDOS_MAX_PER_PAGE
 from .pdf_generator import generate_pedido_pdf
+from .filters import PedidoServicioFilter
+from common.pagination import StandardPagination
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 # -------------------------
-# PAGINACIÓN
-# -------------------------
-class PedidoServicioPagination(PageNumberPagination):
-    page_size = PEDIDOS_PER_PAGE
-    page_size_query_param = 'page_size'
-    max_page_size = PEDIDOS_MAX_PER_PAGE
-
-
-# -------------------------
 # VIEWSET PRINCIPAL
 # -------------------------
 class PedidoServicioViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para la API de Pedidos de Servicio.
+    Aplica paginación, filtros avanzados, búsqueda y ordenamiento.
+    
+    Endpoints disponibles:
+    - GET /pedidos-servicio/ - Lista paginada con filtros
+    - POST /pedidos-servicio/ - Crear nuevo pedido
+    - GET /pedidos-servicio/{id}/ - Detalle de pedido
+    - PUT/PATCH /pedidos-servicio/{id}/ - Actualizar pedido
+    - DELETE /pedidos-servicio/{id}/ - Eliminar pedido
+    - POST /pedidos-servicio/{id}/cambiar_estado/ - Cambiar estado
+    - GET /pedidos-servicio/{id}/pdf/ - Generar PDF
+    
+    Parámetros de consulta:
+    - ?search= : Busca en numero_pedido, cliente__nombre y solicitante
+    - ?estado= : Filtra por estado exacto
+    - ?cliente= : Filtra por ID de cliente
+    - ?manufacturador= : Filtra por ID de manufacturador
+    - ?instalador= : Filtra por ID de instalador
+    - ?fecha_desde= : Fecha inicio >= YYYY-MM-DD
+    - ?fecha_hasta= : Fecha inicio <= YYYY-MM-DD
+    - ?ordering= : Ordena por campo (ej: -created_at, numero_pedido)
+    - ?page= : Número de página
+    - ?page_size= : Elementos por página (máx 100)
+    """
 
     queryset = PedidoServicio.objects.all()
     serializer_class = PedidoServicioSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = PedidoServicioPagination
+    pagination_class = StandardPagination
 
+    # --- CONFIGURACIÓN DE BÚSQUEDA Y FILTROS ---
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['estado', 'cliente', 'manufacturador', 'instalador']
+    filterset_class = PedidoServicioFilter
+    
+    # Búsqueda global por texto
     search_fields = ['numero_pedido', 'cliente__nombre', 'solicitante']
-    ordering_fields = ['created_at', 'fecha_inicio', 'estado']
-    ordering = ['-created_at']
+    
+    # Campos permitidos para ordenamiento
+    ordering_fields = [
+        'created_at',
+        'updated_at',
+        'fecha_inicio',
+        'fecha_fin',
+        'numero_pedido',
+        'estado',
+    ]
+    ordering = ['-created_at']  # Ordenamiento por defecto
 
 
     # -------------------------
@@ -158,7 +187,8 @@ class PedidoServicioViewSet(viewsets.ModelViewSet):
 
         serializer.save(
             usuario_creacion=user,
-            solicitante=nombre
+            solicitante=nombre,
+            fecha_emision=timezone.now().date()
         )
 
 
@@ -223,7 +253,8 @@ class PedidoServicioViewSet(viewsets.ModelViewSet):
                 # Guardar pedido con usuario de creación
                 pedido = pedido_serializer.save(
                     usuario_creacion=user,
-                    solicitante=pedido_data.get('solicitante', user.get_full_name() or user.username)
+                    solicitante=pedido_data.get('solicitante', user.get_full_name() or user.username),
+                    fecha_emision=timezone.now().date()
                 )
                 
                 # 2. Validar TODOS los items primero (sin crear nada)
@@ -430,9 +461,8 @@ class PedidoServicioViewSet(viewsets.ModelViewSet):
         # Eliminar el pedido (los items se eliminan en cascada)
         pedido.delete()
 
-        return Response({
-            'detail': f'Pedido {numero_pedido} eliminado correctamente'
-        }, status=status.HTTP_204_NO_CONTENT)
+        # 204 No Content NO debe tener body
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
     # -------------------------

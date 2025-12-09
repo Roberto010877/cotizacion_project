@@ -5,6 +5,7 @@
   "dashboard": "Dashboard",
   "dashboard_description": "System overview",
   "quotes": "Quotes",
+  "cotizaciones": "Quotations",
   "purchase_orders": "Purchase Orders",
   "purchase_orders_description": "Purchase orders management",
   "suppliers": "Suppliers",
@@ -31,6 +32,8 @@
   "role_comercial": "Sales",
   "create_product": "Create Product",
   "productos": "Product Catalog",
-  "manage_products": "Manage the master inventory.",
-  "name": "Name"
+  "manage_products": "Manage master inventory.",
+  "name": "Name",
+  "products": "Products",
+  "clients": "Clients"
 }

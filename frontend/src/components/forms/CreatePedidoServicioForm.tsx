@@ -168,8 +168,8 @@ export default function CreatePedidoServicioForm({
     const loadPersonal = async () => {
       try {
         const [fabricadoresRes, instaladoresRes] = await Promise.all([
-          apiClient.get('/api/v1/manufactura/?cargo=MANUFACTURADOR'),
-          apiClient.get('/api/v1/manufactura/?cargo=INSTALADOR'),
+          apiClient.get('/manufactura/?cargo=MANUFACTURADOR'),
+          apiClient.get('/manufactura/?cargo=INSTALADOR'),
         ]);
         setFabricadores(fabricadoresRes.data.results || []);
         setInstaladores(instaladoresRes.data.results || []);

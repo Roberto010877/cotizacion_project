@@ -102,8 +102,8 @@ export default function EditPedidoServicioModal({
     const loadPersonal = async () => {
       try {
         const [fabricadoresRes, instaladoresRes] = await Promise.all([
-          apiClient.get('/api/v1/manufactura/?cargo=MANUFACTURADOR'),
-          apiClient.get('/api/v1/manufactura/?cargo=INSTALADOR'),
+          apiClient.get('/manufactura/?cargo=MANUFACTURADOR'),
+          apiClient.get('/manufactura/?cargo=INSTALADOR'),
         ]);
         setFabricadores(fabricadoresRes.data.results || []);
         setInstaladores(instaladoresRes.data.results || []);
@@ -121,7 +121,7 @@ export default function EditPedidoServicioModal({
     const cargarPedidoCompleto = async () => {
       setIsFetchingData(true);
       try {
-        const response = await apiClient.get(`/api/v1/pedidos-servicio/${pedido.id}/`);
+        const response = await apiClient.get(`/pedidos-servicio/${pedido.id}/`);
         const data = response.data;
 
         // Mapear datos de la API al formato del Formulario
@@ -183,17 +183,17 @@ export default function EditPedidoServicioModal({
         instalador_id: data.instalador_id,
       };
 
-      await apiClient.put(`/api/v1/pedidos-servicio/${pedido.id}/`, pedidoUpdateData);
+      await apiClient.put(`/pedidos-servicio/${pedido.id}/`, pedidoUpdateData);
 
       // Paso 2: Obtener items actuales para eliminar
-      const pedidoActualizado = await axiosInstance.get(`/api/v1/pedidos-servicio/${pedido.id}/`);
+      const pedidoActualizado = await axiosInstance.get(`/pedidos-servicio/${pedido.id}/`);
       const itemsViejos = pedidoActualizado.data.items || [];
 
       // Paso 3: Eliminar Items Viejos
       // Nota: Idealmente el backend debería manejar una "Sincronización" masiva, pero mantenemos tu lógica
       if (itemsViejos.length > 0) {
         await Promise.all(itemsViejos.map((item: any) => 
-          axiosInstance.delete(`/api/v1/pedidos-servicio/${pedido.id}/items/${item.id}/`)
+          axiosInstance.delete(`/pedidos-servicio/${pedido.id}/items/${item.id}/`)
         ));
       }
 
@@ -201,7 +201,7 @@ export default function EditPedidoServicioModal({
       // Usamos un bucle for..of secuencial o Promise.all para crear los nuevos
       // Promise.all es más rápido pero si falla uno es más difícil de rastrear. Usaremos secuencial por seguridad.
       for (const item of data.items) {
-        await apiClient.post(`/api/v1/pedidos-servicio/${pedido.id}/items/`, item);
+        await apiClient.post(`/pedidos-servicio/${pedido.id}/items/`, item);
       }
 
       toast.success(t('pedidos_servicio:order_updated_success'));
@@ -219,7 +219,7 @@ export default function EditPedidoServicioModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{t('pedidos_servicio:edit_order')}: {pedido?.numero_pedido}</DialogTitle>
           <DialogDescription>

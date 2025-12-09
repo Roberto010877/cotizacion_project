@@ -58,7 +58,7 @@ export default function PedidoDetailModal({
       
       const fetchPedidoDetalle = async () => {
         try {
-          const response = await apiClient.get(`/api/v1/pedidos-servicio/${pedido.id}/`);
+          const response = await apiClient.get(`/pedidos-servicio/${pedido.id}/`);
           setPedidoCompleto(response.data);
         } catch (error) {
           console.error('Error cargando detalles del pedido:', error);
@@ -124,7 +124,7 @@ export default function PedidoDetailModal({
   const handleStatusChange = async (nuevoEstado: string) => {
     setIsUpdating(true);
     try {
-      await apiClient.post(`/api/v1/pedidos-servicio/${datos.id}/cambiar_estado/`, {
+      await apiClient.post(`/pedidos-servicio/${datos.id}/cambiar_estado/`, {
         estado: nuevoEstado,
       });
       toast.success(t('pedidos_servicio:status_updated'));
@@ -141,7 +141,7 @@ export default function PedidoDetailModal({
   const handleDownloadPDF = async () => {
     try {
       const response = await apiClient.get(
-        `/api/v1/pedidos-servicio/${datos.id}/pdf/`,
+        `/pedidos-servicio/${datos.id}/pdf/`,
         { responseType: 'blob' }
       );
       
@@ -164,7 +164,11 @@ export default function PedidoDetailModal({
   // 4. Formateadores
   const formatDateTime = (datetime: string | undefined) => {
     if (!datetime) return '-';
-    return new Date(datetime).toLocaleDateString() + ' ' + new Date(datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Extraer fecha/hora del ISO string sin convertir zona horaria
+    const [datePart, timePart] = datetime.split('T');
+    const [year, month, day] = datePart.split('-');
+    const time = timePart.substring(0, 5); // HH:MM
+    return `${day}/${month}/${year} ${time}`;
   };
 
   const formatDate = (date: string | undefined) => {
@@ -195,7 +199,7 @@ export default function PedidoDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{t('pedidos_servicio:service_detail')}</DialogTitle>
           <DialogDescription>
